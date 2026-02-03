@@ -103,18 +103,18 @@ export const Generator: React.FC = () => {
                     <CyberButton 
                         onClick={() => handleCountChange(-1)}
                         disabled={count <= 1}
-                        className="w-8 h-8 p-0 flex items-center justify-center rounded-full"
+                        className="w-8 h-8 p-0 flex items-center justify-center rounded-full -translate-y-[3px]"
                         variant="dark"
                     >
                         <Minus size={14} />
                     </CyberButton>
-                    <span className="font-mono font-bold text-lg w-6 text-center bg-[linear-gradient(135deg,#FFD700,#EF4444,#EC4899,#A855F7)] bg-clip-text text-transparent drop-shadow-[0_0_5px_rgba(236,72,153,0.5)]">
+                    <span className="font-mono font-bold text-lg w-6 text-center bg-[linear-gradient(90deg,#FFFF00,#FFB347,#FF6961,#FF69B4,#DA70D6,#FFFF00)] bg-[length:200%_auto] animate-gradient-flow bg-clip-text text-transparent drop-shadow-[0_0_5px_rgba(255,255,255,0.4)]">
                         {count}
                     </span>
                     <CyberButton 
                         onClick={() => handleCountChange(1)}
                         disabled={count >= 10}
-                        className="w-8 h-8 p-0 flex items-center justify-center rounded-full"
+                        className="w-8 h-8 p-0 flex items-center justify-center rounded-full -translate-y-[3px]"
                         variant="dark"
                     >
                         <Plus size={14} />
