@@ -16,7 +16,13 @@ export const Generator: React.FC = () => {
     // Simulate slight calculation delay for "heavy machinery" feel
     setTimeout(() => {
         setColors(prev => {
-            const modes: PaletteMode[] = ['complementary', 'monochromatic', 'analogous', 'random', 'cyberpunk', 'modern-ui', 'retro-future'];
+            // Updated Mode List with new strategies
+            const modes: PaletteMode[] = [
+                'random', 'random', 'random', // Higher weight for smart random
+                'compound', 'shades', 'modern-ui', 'cyberpunk', 'retro-future',
+                'complementary', 'analogous', 'triadic', 'split-complementary'
+            ];
+            
             const selectedMode = modes[Math.floor(Math.random() * modes.length)];
 
             // Generate enough colors for the requested count
