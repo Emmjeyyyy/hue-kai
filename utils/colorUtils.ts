@@ -305,9 +305,40 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
         break;
   }
 
-  // Determine Strategy for Neutrals
-  // If we are strictly generating (no baseColor) or have enough slots, inject neutrals.
+  // Determine Strategy for Neutrals (for non-monochromatic modes)
   const useNeutralTemplate = (!baseColor && Math.random() < 0.6) || (baseColor && count >= 5);
+
+  // Monochromatic Strategy Setup
+  let monoStartL = 0;
+  let monoStepL = 0;
+  let monoFixedS = 0;
+  
+  if (mode === 'monochromatic') {
+      // 20% chance to allow dark/neutral/muted monochromatic palettes
+      // 80% chance to enforce vibrant, bright, colorful palettes
+      const isMoodPalette = !baseColor && Math.random() < 0.2;
+      
+      if (isMoodPalette) {
+          // "Mood" Mode: Can be dark, desaturated, or high contrast darks
+          monoFixedS = Math.random() * 60; // 0-60% Saturation (Neutral to Muted)
+          const range = 40 + Math.random() * 40; 
+          monoStartL = 5 + Math.random() * 20; // Start very dark
+          monoStepL = range / Math.max(1, count - 1);
+      } else {
+          // "Vibrant" Mode (Default): Bright, colorful, clear
+          monoFixedS = baseColor ? baseSat : (65 + Math.random() * 35); // High Saturation
+          
+          // Lightness range restricted to "pretty" zone (e.g. 25% to 92%)
+          const minL = 25;
+          const maxL = 92;
+          const range = 50 + Math.random() * 20; // Spread of 50-70%
+          
+          // Randomize start within safe bounds
+          const maxStart = maxL - range;
+          monoStartL = minL + Math.random() * (maxStart - minL);
+          monoStepL = range / Math.max(1, count - 1);
+      }
+  }
 
   for (let i = 0; i < count; i++) {
     let h = hues[i];
@@ -315,19 +346,11 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
     let l = baseLit;
 
     if (mode === 'monochromatic') {
-        // Monochromatic Gradient
-        // Improved: Constrain L to colourful range (20-85) to avoid darks/neutrals.
-        const minL = 20;
-        const maxL = 85;
-        const range = maxL - minL;
-        const step = range / (Math.max(1, count - 1));
+        l = monoStartL + (i * monoStepL);
+        s = monoFixedS;
         
-        l = minL + (i * step); 
-        
-        // Ensure saturation is high to avoid neutrals unless explicitly requested (via baseColor)
-        if (!baseColor) {
-             s = Math.max(60, s);
-        }
+        // Physics tweak: Extremely light colors often perceived with slightly less saturation in UI design
+        if (l > 85) s *= 0.85; 
     } else {
         // Standard Structured Mode Logic
         // Apply "Templates" if enabled and count is sufficient
