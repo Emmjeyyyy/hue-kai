@@ -3,16 +3,18 @@ import { Copy, Lock, Unlock, Check } from 'lucide-react';
 import { ColorData } from '../types';
 
 export const CyberButton: React.FC<{ 
-  onClick: () => void; 
+  onClick?: () => void; 
   children: React.ReactNode; 
   className?: string;
   variant?: 'primary' | 'secondary' | 'danger';
   pressed?: boolean;
-}> = ({ onClick, children, className = '', variant = 'primary', pressed = false }) => {
+  disabled?: boolean;
+}> = ({ onClick, children, className = '', variant = 'primary', pressed = false, disabled = false }) => {
   
   // Removed active:scale-95 from base to handle it per-variant (scale conflicts with 3D translation)
   // Added transition-transform and ease-out for smooth mechanical movement
-  const baseStyle = "relative font-mono font-bold uppercase tracking-wider transition-transform duration-100 ease-out group isolate";
+  // Added disabled styles
+  const baseStyle = "relative font-mono font-bold uppercase tracking-wider transition-transform duration-100 ease-out group isolate disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed";
   
   // Refined Primary Variant (3D Effect):
   // - Uses '::before' as the fixed depth layer (darker extrusion)
@@ -64,7 +66,8 @@ export const CyberButton: React.FC<{
 
   return (
     <button 
-      onClick={onClick} 
+      onClick={onClick}
+      disabled={disabled}
       className={`${baseStyle} ${variants[variant]} ${pressed ? pressedStyles[variant] : ''} px-8 py-3 ${className}`}
     >
       <span className="relative z-10 flex items-center justify-center gap-2 drop-shadow-md select-none">{children}</span>

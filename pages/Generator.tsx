@@ -100,23 +100,23 @@ export const Generator: React.FC = () => {
                 
                 {/* Count Controls */}
                 <div className="flex items-center gap-2 md:gap-3 border-r border-white/10 pr-4 md:pr-6">
-                    <button 
+                    <CyberButton 
                         onClick={() => handleCountChange(-1)}
                         disabled={count <= 1}
-                        className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 disabled:hover:bg-transparent transition-colors border border-white/5"
+                        className="w-8 h-8 p-0 flex items-center justify-center rounded-full"
                     >
                         <Minus size={14} />
-                    </button>
+                    </CyberButton>
                     <span className="font-mono font-bold text-lg w-6 text-center bg-[linear-gradient(135deg,#FFD700,#EF4444,#EC4899,#A855F7)] bg-clip-text text-transparent drop-shadow-[0_0_5px_rgba(236,72,153,0.5)]">
                         {count}
                     </span>
-                    <button 
+                    <CyberButton 
                         onClick={() => handleCountChange(1)}
                         disabled={count >= 10}
-                        className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 disabled:hover:bg-transparent transition-colors border border-white/5"
+                        className="w-8 h-8 p-0 flex items-center justify-center rounded-full"
                     >
                         <Plus size={14} />
-                    </button>
+                    </CyberButton>
                 </div>
 
                 <span className="hidden lg:flex items-center justify-center text-xs font-mono text-gray-400 tracking-widest uppercase h-full pt-1 whitespace-nowrap">
