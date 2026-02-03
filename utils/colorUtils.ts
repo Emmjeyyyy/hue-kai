@@ -98,19 +98,22 @@ interface Vibe {
 
 const getWeightedVibe = (): Vibe => {
   const r = Math.random();
-  // 35% Balanced (Standard full range)
-  if (r < 0.35) return { name: 'balanced', sMin: 30, sMax: 95, lMin: 20, lMax: 85 };
-  // 15% Vibrant (High Sat, Mid Light)
-  if (r < 0.50) return { name: 'vibrant', sMin: 80, sMax: 100, lMin: 45, lMax: 65 };
-  // 15% Pastel (Low-Mid Sat, High Light)
-  if (r < 0.65) return { name: 'pastel', sMin: 30, sMax: 70, lMin: 80, lMax: 96 };
-  // 10% Dark (Low Light)
-  if (r < 0.75) return { name: 'dark', sMin: 10, sMax: 80, lMin: 5, lMax: 30 };
-  // 10% Light (High Light)
-  if (r < 0.85) return { name: 'light', sMin: 10, sMax: 60, lMin: 85, lMax: 99 };
-  // 10% Neon (Max Sat, Mid Light)
-  if (r < 0.95) return { name: 'neon', sMin: 95, sMax: 100, lMin: 50, lMax: 60 };
-  // 5% Desaturated (Muted, moody)
+  // 45% Vivid/Rich: High saturation, mid lightness (Best for general design)
+  if (r < 0.45) return { name: 'vivid', sMin: 65, sMax: 100, lMin: 40, lMax: 65 };
+  
+  // 25% Bright/Clean: Mid-High saturation, High lightness (Modern App feel)
+  if (r < 0.70) return { name: 'bright', sMin: 50, sMax: 90, lMin: 70, lMax: 95 };
+  
+  // 15% Deep/Strong: Saturated but dark (Sophisticated)
+  if (r < 0.85) return { name: 'deep', sMin: 50, sMax: 90, lMin: 15, lMax: 35 };
+  
+  // 10% Dynamic/Balanced: Full range but biased against grey
+  if (r < 0.95) return { name: 'balanced', sMin: 35, sMax: 95, lMin: 20, lMax: 85 };
+  
+  // 4% Neon: Max saturation
+  if (r < 0.99) return { name: 'neon', sMin: 95, sMax: 100, lMin: 50, lMax: 60 };
+  
+  // 1% Muted/Desaturated: The only place where low saturation is allowed
   return { name: 'muted', sMin: 0, sMax: 20, lMin: 30, lMax: 70 };
 };
 
@@ -120,7 +123,6 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
   const usedHexes = new Set<string>();
 
   // Determine Vibe for this generation
-  // If base color is provided, we might still want to respect its properties or shift them
   const vibe = getWeightedVibe();
 
   const addColor = (h: number, s: number, l: number) => {
@@ -206,13 +208,47 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
       if (Math.random() < 0.1) {
           generateNeutralContrastScheme();
       } else {
-          // Smart Random: Apply the selected vibe to all random colors
+          // Coolors-style Procedural Generation (Saturated & Balanced)
+          // Instead of pure random, we walk the color wheel with constraints.
+          
+          const method = Math.random();
+          let hueStep = 0;
+          
+          if (method < 0.5) {
+             // Analogous / Soft shift (Most pleasing for random palettes)
+             // Step 20-50 degrees
+             hueStep = randomInt(20, 50) * (Math.random() > 0.5 ? 1 : -1);
+          } else if (method < 0.8) {
+             // Triadic / Wider spacing
+             hueStep = randomInt(90, 150);
+          } else {
+             // Tighter Monochromatic-ish shift
+             hueStep = randomInt(5, 15) * (Math.random() > 0.5 ? 1 : -1);
+          }
+
+          let currentH = baseH;
+          
           for(let i=0; i<count; i++) {
-              addColor(
-                  randomInt(0, 360),
-                  randomInt(vibe.sMin, vibe.sMax),
-                  randomInt(vibe.lMin, vibe.lMax)
-              );
+              // Hue: Walk with jitter
+              let h = (currentH + randomInt(-5, 5)) % 360;
+              currentH += hueStep;
+
+              // Saturation:
+              // Use vibe range but apply local jitter.
+              // CRITICAL: Enforce minimum saturation unless explicitly muted.
+              let s = clamp(randomInt(vibe.sMin, vibe.sMax) + randomInt(-10, 10), 0, 100);
+              if (vibe.name !== 'muted') {
+                  s = Math.max(30, s); // Floor saturation to avoid greyish mud
+              }
+
+              // Lightness:
+              // Add variance to ensure adjacent colors have some contrast
+              let l = clamp(randomInt(vibe.lMin, vibe.lMax) + randomInt(-15, 15), 0, 100);
+              
+              // Lightness Guard: Prevent washed out neon colors
+              if (s > 90 && l > 85 && vibe.name !== 'neon') l = 85;
+
+              addColor(h, s, l);
           }
       }
   }
@@ -228,11 +264,11 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
               addColor(randomInt(0, 360), randomInt(90, 100), randomInt(50, 65));
           }
       } else if (subTheme < 0.7) { // Vaporwave (Pastel Neon)
-           addColor(randomInt(240, 300), randomInt(30, 50), randomInt(10, 20)); // Deep Purple Base
+           addColor(randomInt(240, 300), randomInt(40, 60), randomInt(10, 20)); // Deep Purple Base (more sat)
            for(let i=1; i<count; i++) {
                // Pinks, Cyans, Purples
                const h = Math.random() > 0.5 ? randomInt(300, 340) : randomInt(160, 200);
-               addColor(h, randomInt(60, 90), randomInt(70, 85));
+               addColor(h, randomInt(70, 95), randomInt(70, 85));
            }
       } else { // High Tech Light (Mirror's Edge style)
            addColor(0, 0, randomInt(90, 98)); // White/Light Grey
@@ -240,8 +276,8 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
            addColor(0, 100, 50); // Pure Red
            addColor(45, 100, 50); // Pure Yellow
            addColor(200, 100, 50); // Pure Blue
-           // Fill rest randomly
-           while(palette.length < count) addColor(randomInt(0, 360), 0, randomInt(40, 60));
+           // Fill rest randomly with high saturation
+           while(palette.length < count) addColor(randomInt(0, 360), randomInt(80, 100), randomInt(40, 60));
       }
   }
 
@@ -251,22 +287,22 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
       if (subTheme < 0.25) { // Dark Mode
           addColor(220, 15, 10); // Dark Bg
           addColor(220, 10, 20); // Surface
-          // Accents
+          // Accents - Force saturation
           const accentH = baseH;
-          for(let i=2; i<count; i++) addColor(accentH + (i*10), randomInt(70, 90), randomInt(60, 75));
+          for(let i=2; i<count; i++) addColor(accentH + (i*10), randomInt(75, 95), randomInt(60, 75));
       } else if (subTheme < 0.50) { // Light Mode (Classic)
           addColor(220, 5, 98); // White
           addColor(220, 10, 90); // Off-white
           addColor(220, 20, 20); // Text
           // Brand colors
-          while(palette.length < count) addColor(baseH, randomInt(70, 90), randomInt(50, 60));
+          while(palette.length < count) addColor(baseH, randomInt(75, 95), randomInt(50, 60));
       } else if (subTheme < 0.70) { // Colorful / Brand Heavy
            // Analogous shift
            for(let i=0; i<count; i++) {
-               addColor(baseH + (i * 30), randomInt(70, 90), randomInt(45, 65));
+               addColor(baseH + (i * 30), randomInt(75, 95), randomInt(50, 65));
            }
       } else {
-           // New: Neutral Anchored Accent Contrast
+           // Neutral Anchored Accent Contrast
            generateNeutralContrastScheme();
       }
   }
@@ -280,7 +316,7 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
           const endH = 30 + 360; // 390
           const step = (endH - startH) / count;
           for(let i=0; i<count; i++) {
-              addColor((startH + (i*step)) % 360, randomInt(70, 100), randomInt(40, 60));
+              addColor((startH + (i*step)) % 360, randomInt(75, 100), randomInt(45, 65));
           }
       } else { // 90s Arcade
           // Primary colors + Black
@@ -290,7 +326,7 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
                    addColor(0, 0, 10); // Black
               } else {
                    const h = primaries[i % primaries.length] + randomInt(-10, 10);
-                   addColor(h, randomInt(80, 100), randomInt(45, 60));
+                   addColor(h, randomInt(85, 100), randomInt(45, 60));
               }
           }
       }
@@ -347,7 +383,10 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
           // Other structured modes
           for (let i = 0; i < count; i++) {
               const h = hues[i];
-              const s = clamp(randomInt(vibe.sMin, vibe.sMax), 0, 100);
+              let s = clamp(randomInt(vibe.sMin, vibe.sMax), 0, 100);
+              // Ensure minimum saturation for structured modes unless muted
+              if (vibe.name !== 'muted') s = Math.max(30, s);
+              
               const l = clamp(randomInt(vibe.lMin, vibe.lMax), 0, 100);
               addColor(h, s, l);
           }
