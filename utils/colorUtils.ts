@@ -215,6 +215,8 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
   };
 
   // --- MODE EXECUTION ---
+  
+  let strategyUsed = "";
 
   if (mode === 'random') {
       const strategies = [
@@ -225,19 +227,92 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
           'pastel-dream', 
           'high-contrast-clash',
           'monochromatic-texture',
-          'dark-neon-glow' // NEW
+          'dark-neon-glow',
+          'structural-duo', 
+          'structural-trio', 
+          'anchor-focus' 
       ];
       
       // Reduced chance for Neutral Contrast to prevent domination, 
       // but the function itself is now varied so it's less risky.
       if (chance(0.08)) {
           generateNeutralContrastScheme();
+          strategyUsed = "neutral-contrast";
       } else {
           const strategy = strategies[Math.floor(Math.random() * strategies.length)];
+          strategyUsed = strategy;
           
           let currentH = baseH;
 
           switch(strategy) {
+              case 'structural-duo': {
+                  // Limited Hue Structure: Exactly 2 distinct hues
+                  const h1 = baseH;
+                  // Ensure h2 is distinct enough
+                  const h2 = (baseH + randomInt(60, 180)) % 360;
+                  
+                  for(let i=0; i<count; i++) {
+                      // Alternate or random selection between the two hues
+                      const useFirst = chance(0.5);
+                      const targetH = useFirst ? h1 : h2;
+                      
+                      // Vary S and L significantly
+                      addColor(
+                          targetH + randomInt(-5, 5),
+                          randomInt(vibe.sMin, vibe.sMax), 
+                          randomInt(10, 90) // Full lightness range for contrast
+                      );
+                  }
+                  break;
+              }
+
+              case 'structural-trio': {
+                  // Limited Hue Structure: Exactly 3 distinct hues
+                  const h1 = baseH;
+                  const h2 = (baseH + randomInt(60, 120)) % 360;
+                  const h3 = (h2 + randomInt(60, 120)) % 360;
+                  const hues = [h1, h2, h3];
+
+                  for(let i=0; i<count; i++) {
+                      const targetH = hues[i % 3];
+                      addColor(
+                          targetH + randomInt(-5, 5),
+                          randomInt(vibe.sMin, vibe.sMax),
+                          randomInt(20, 85)
+                      );
+                  }
+                  break;
+              }
+
+              case 'anchor-focus': {
+                  // High Contrast: White or Black anchor + Vivid Accents
+                  const isDarkAnchor = chance(0.5);
+                  // 1 or 2 anchors
+                  const numAnchors = randomInt(1, Math.min(2, count - 1));
+
+                  for(let i=0; i<count; i++) {
+                      if (i < numAnchors) {
+                          if (isDarkAnchor) {
+                              // Deep Black/Charcoal
+                              addColor(baseH, randomInt(0, 10), randomInt(0, 8));
+                          } else {
+                              // Bright White/Off-White
+                              addColor(baseH, randomInt(0, 10), randomInt(92, 100));
+                          }
+                      } else {
+                          // Vivid Accents
+                          // Shift hue for diversity
+                          const accentH = (baseH + (i * 45) + 60) % 360;
+                          addColor(
+                              accentH, 
+                              randomInt(80, 100), // High Sat
+                              randomInt(40, 60)   // Mid Lightness
+                          );
+                      }
+                  }
+                  break;
+              }
+
               case 'golden-ratio': // Perfect mathematical distribution
                   for(let i=0; i<count; i++) {
                       addColor(
@@ -475,7 +550,52 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
       }
   }
 
-  // 3. Shuffle (Randomize order to break gradients unless specifically desired)
+  // 3. Post-Generation Safety Check (Anti-Washed-Out)
+  if (mode === 'random' && strategyUsed !== 'pastel-dream' && palette.length > 0) {
+      const getL = (c: ColorData) => {
+          const m = c.hsl.match(/(\d+)%\s*$/);
+          return m ? parseInt(m[1]) : 50;
+      };
+      const getS = (c: ColorData) => {
+          const m = c.hsl.match(/(\d+)%,\s*\d+%/);
+          return m ? parseInt(m[1]) : 50;
+      };
+
+      // Check if palette lacks visual interest
+      // Condition: No color is (Dark < 40) AND No color is (Vivid S > 70 & L < 85) AND No color is (Bright White > 92)
+      const hasAnchor = palette.some(c => {
+          const l = getL(c);
+          const s = getS(c);
+          return l < 40 || (s > 70 && l < 85) || l > 92;
+      });
+
+      if (!hasAnchor) {
+          // Inject an anchor color into a random slot
+          const idx = Math.floor(Math.random() * palette.length);
+          
+          let h = baseH;
+          let s = 0, l = 0;
+          
+          if (Math.random() < 0.6) {
+              // Option A: Dark Anchor (Black/Deep Tone)
+              s = Math.floor(Math.random() * 30) + 10;
+              l = Math.floor(Math.random() * 20) + 5;
+          } else {
+              // Option B: Vivid Pop (Complementary)
+              h = (baseH + 180 + Math.floor(Math.random() * 60 - 30)) % 360;
+              s = Math.floor(Math.random() * 20) + 80; // 80-100 Sat
+              l = Math.floor(Math.random() * 30) + 40; // 40-70 Light
+          }
+          
+          const rgb = hslToRgb(h, s, l);
+          const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
+          // Overwrite with new strong color
+          palette[idx] = createColorData(hex);
+          registerColor(hex); // Register replacement
+      }
+  }
+
+  // 4. Shuffle (Randomize order to break gradients unless specifically desired)
   let result = palette.slice(0, count);
   
   // Some modes look better sorted, some shuffled. 
