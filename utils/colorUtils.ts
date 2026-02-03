@@ -185,30 +185,38 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
 
   // --- SPECIALIZED RECIPES ---
 
-  // A. Neutral Contrast Scheme (The requested feature)
+  // A. Neutral Contrast Scheme
+  // REFACTORED: Removed hardcoded Blue/Orange bias. Now respects 'baseH' for base color
+  // and dynamically calculates accents to ensure variety (e.g. Green Base + Purple Accent).
   const generateNeutralContrastScheme = () => {
-       const isWarmNeutral = chance(0.5);
-       // 1. Black/Dark Base
-       addColor(randomInt(200, 260), randomInt(5, 20), randomInt(5, 12));
-       // 2. Warm Saturated Accent
-       addColor(randomInt(10, 40), randomInt(85, 100), randomInt(50, 65));
-       // 3. Cool Light Accent
-       addColor(randomInt(180, 220), randomInt(20, 50), randomInt(80, 95));
-       // 4. Soft Neutral
-       addColor(isWarmNeutral ? randomInt(320, 360) : randomInt(200, 220), randomInt(5, 20), randomInt(92, 98));
-       // 5. Mid Gray
-       addColor(randomInt(200, 240), randomInt(5, 15), randomInt(40, 55));
+       const rootH = baseH; // Use the rotated global hue
+       const accentH = (rootH + randomInt(150, 210)) % 360; // Complementary/Split
        
-       // Fill
-       while(palette.length < count) addColor(baseH, randomInt(50, 80), randomInt(40, 60));
+       // 1. Dark Base (Tinted with root Hue)
+       addColor(rootH + randomInt(-15, 15), randomInt(5, 20), randomInt(4, 10));
+       
+       // 2. Warm/Contrast Saturated Accent
+       addColor(accentH, randomInt(85, 100), randomInt(50, 65));
+       
+       // 3. Light Accent (Could be analogous to root or accent)
+       const lightAccentH = chance(0.5) ? (rootH + 30) % 360 : (accentH - 30) % 360;
+       addColor(lightAccentH, randomInt(20, 50), randomInt(80, 95));
+       
+       // 4. Soft Neutral (Off-white, tinted with root)
+       addColor(rootH, randomInt(2, 10), randomInt(90, 98));
+       
+       // 5. Mid Tone / Bridge (Desaturated root or neighbor)
+       addColor(rootH + randomInt(-20, 20), randomInt(5, 15), randomInt(30, 50));
+       
+       // Fill remainder
+       while(palette.length < count) {
+           addColor(rootH + randomInt(0, 360), randomInt(50, 80), randomInt(40, 60));
+       }
   };
 
   // --- MODE EXECUTION ---
 
   if (mode === 'random') {
-      // "True RNG" Strategy Selection
-      // We pick a generation recipe to ensure internal consistency but external variety.
-      
       const strategies = [
           'golden-ratio', 
           'analogous-walk', 
@@ -216,11 +224,13 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
           'neutral-pop', 
           'pastel-dream', 
           'high-contrast-clash',
-          'monochromatic-texture'
+          'monochromatic-texture',
+          'dark-neon-glow' // NEW
       ];
       
-      // 10% Chance for the specific Neutral Contrast Scheme
-      if (chance(0.1)) {
+      // Reduced chance for Neutral Contrast to prevent domination, 
+      // but the function itself is now varied so it's less risky.
+      if (chance(0.08)) {
           generateNeutralContrastScheme();
       } else {
           const strategy = strategies[Math.floor(Math.random() * strategies.length)];
@@ -261,17 +271,20 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
                   const popIndices = [randomInt(0, count-1), randomInt(0, count-1)];
                   for(let i=0; i<count; i++) {
                       if (popIndices.includes(i)) {
-                          addColor(randomInt(0, 360), randomInt(80, 100), randomInt(50, 70));
+                          // Pop color: distinct from base
+                          addColor((baseH + 180 + randomInt(-30, 30)) % 360, randomInt(80, 100), randomInt(50, 70));
                       } else {
-                          addColor(baseH + randomInt(-30, 30), randomInt(0, 15), randomInt(20, 90));
+                          // Neutrals: Tinted with Base Hue
+                          addColor(baseH + randomInt(-10, 10), randomInt(0, 15), randomInt(20, 90));
                       }
                   }
                   break;
                   
               case 'pastel-dream':
+                  // REFACTORED: Now uses baseH offsets instead of pure random to ensure rotation matters
                   for(let i=0; i<count; i++) {
                       addColor(
-                          randomInt(0, 360), // Any hue
+                          (baseH + (i * 70) + randomInt(-20, 20)) % 360,
                           randomInt(30, 70), // Mid sat
                           randomInt(85, 96)  // High light
                       );
@@ -281,9 +294,18 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
               case 'high-contrast-clash':
                   for(let i=0; i<count; i++) {
                       // Flip between very dark and very light
-                      const l = chance(0.5) ? randomInt(10, 25) : randomInt(80, 95);
-                      addColor(currentH, randomInt(70, 100), l);
-                      currentH += randomInt(90, 180); // Big jumps
+                      const l = chance(0.5) ? randomInt(10, 20) : randomInt(85, 95);
+                      // Use complementary jumps
+                      const h = (baseH + (i * 180)) % 360; 
+                      addColor(h, randomInt(70, 100), l);
+                  }
+                  break;
+              
+              case 'dark-neon-glow':
+                  // New strategy: Very dark background + Neon accents of adjacent hues
+                  addColor(baseH, randomInt(10, 30), randomInt(5, 10)); // Base Dark
+                  for(let i=1; i<count; i++) {
+                      addColor((baseH + randomInt(-60, 60)) % 360, 100, randomInt(50, 70));
                   }
                   break;
 
@@ -304,24 +326,28 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
       const subTheme = Math.random();
       
       if (subTheme < 0.33) { // Classic Neon
-          addColor(randomInt(220, 280), randomInt(30, 50), randomInt(5, 12)); // Dark Cool Base
+          // Use global baseH to determine the 'Dark Cool Base' instead of hardcoded blue
+          addColor(baseH, randomInt(20, 40), randomInt(5, 12)); 
           for(let i=1; i<count; i++) {
-              // High Sat neon accents
-              addColor(randomInt(0, 360), 100, 60); 
+              // High Sat neon accents, potentially complementary
+              const h = (baseH + 120 + (i * 50)) % 360;
+              addColor(h, 100, 60); 
           }
-      } else if (subTheme < 0.66) { // Matrix/Hacker
+      } else if (subTheme < 0.66) { // Matrix/Hacker style (Monochrome Green/Digital)
+           // Use baseH as the 'terminal color'
            addColor(0, 0, 5); // Black
            for(let i=1; i<count; i++) {
-               const greenH = 120 + randomInt(-40, 40);
-               addColor(greenH, randomInt(80, 100), randomInt(30, 80));
+               const h = baseH + randomInt(-20, 20); // Tighter grouping
+               addColor(h, randomInt(80, 100), randomInt(30, 80));
            }
       } else { // Synthwave Sunset
-           // Start Purple, End Yellow/Orange
-           const start = 260 + randomInt(-20, 20);
-           const end = 40 + randomInt(-10, 10) + 360;
-           const step = (end - start) / (count - 1 || 1);
+           // Start from baseH, gradient to complementary
+           const start = baseH;
+           const end = (baseH + 180) % 360;
+           // We need to handle wrapping for gradient calc, simpler to just step
            for(let i=0; i<count; i++) {
-               addColor((start + (i*step)) % 360, randomInt(80, 100), randomInt(40, 70));
+               const h = (start + (i * (180/count))) % 360;
+               addColor(h, randomInt(80, 100), randomInt(40, 70));
            }
       }
   }
@@ -330,19 +356,20 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
       // V2: Randomized Brand Color
       // 30% Dark Mode, 30% Light Mode, 30% Colorful, 10% Neutral Contrast
       const sub = Math.random();
-      const brandH = randomInt(0, 360); // Randomized brand hue!
+      const brandH = (baseH + randomInt(0, 60)) % 360; // Use baseH as anchor but vary
 
       if (sub < 0.3) { // Dark
-          // Slate/Zinc background
-          addColor(215, 20, 12); 
-          addColor(215, 15, 22);
+          // REFACTORED: Tint background with brand color instead of hardcoded Slate
+          addColor(brandH, 20, 10); 
+          addColor(brandH, 15, 18);
           // Accents
           for(let i=2; i<count; i++) addColor(brandH, randomInt(70, 90), randomInt(60, 75));
       } else if (sub < 0.6) { // Light
-          addColor(0, 0, 98); 
-          addColor(brandH, 5, 95); // Tinted surface
-          addColor(0, 0, 20); // Text
-          for(let i=3; i<count; i++) addColor(brandH, randomInt(80, 100), randomInt(50, 60));
+          // Tinted whites
+          addColor(brandH, 5, 98); 
+          addColor(brandH, 8, 92); // Surface
+          addColor(brandH, 20, 20); // Text
+          for(let i=3; i<count; i++) addColor((brandH + 180) % 360, randomInt(80, 100), randomInt(50, 60));
       } else if (sub < 0.9) { // Brand Heavy
            for(let i=0; i<count; i++) {
                addColor(brandH + (i * 20), randomInt(70, 90), randomInt(45, 65));
@@ -356,20 +383,24 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
       // 90s Memphis or Y2K Chrome
       if (chance(0.5)) { // Memphis Pattern
           const primaries = [0, 50, 120, 180, 280, 320]; // Red, Yellow, Green, Cyan, Purple, Pink
+          // Shift primaries by baseH to create variety in "Primary" definitions
+          const shiftedPrimaries = primaries.map(p => (p + baseH) % 360);
+          
           for(let i=0; i<count; i++) {
               if (chance(0.15)) addColor(0,0,10); // Black squiggle
               else if (chance(0.15)) addColor(0,0,95); // White background
               else {
-                  const h = primaries[randomInt(0, primaries.length-1)] + randomInt(-10,10);
+                  const h = shiftedPrimaries[randomInt(0, shiftedPrimaries.length-1)] + randomInt(-10,10);
                   addColor(h, randomInt(70, 90), randomInt(50, 70));
               }
           }
       } else { // Y2K Chrome (Silvers + Iridescent)
           for(let i=0; i<count; i++) {
-              if (chance(0.6)) { // Silver/Grey
-                  addColor(210, randomInt(5, 20), randomInt(70, 95));
+              if (chance(0.6)) { // Silver/Grey - Tinted with BaseH
+                  addColor(baseH, randomInt(5, 15), randomInt(70, 95));
               } else { // Holographic Accent
-                  addColor(randomInt(0, 360), randomInt(50, 80), randomInt(70, 90));
+                  // Random hue vs BaseH
+                  addColor((baseH + randomInt(0, 360)) % 360, randomInt(50, 80), randomInt(70, 90));
               }
           }
       }
@@ -404,7 +435,6 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
   else {
       // --- STANDARD MODES ---
       // (Monochromatic, Analogous, Triadic, Tetradic, Split-Comp, Complementary)
-      // Logic mostly unchanged, but using updated 'addColor' which respects history
       
       const hues: number[] = [];
       
