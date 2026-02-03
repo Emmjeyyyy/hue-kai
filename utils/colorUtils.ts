@@ -86,35 +86,170 @@ export const generateRandomColor = (): string => {
 // Generation Logic
 export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?: string): ColorData[] => {
   const palette: ColorData[] = [];
-  
-  // Random Mode: Fully random, strict uniqueness
-  if (mode === 'random') {
-      const usedHex = new Set<string>();
-      let attempts = 0;
-      while (palette.length < count && attempts < 100) {
-          const h = Math.floor(Math.random() * 360);
-          const s = Math.floor(Math.random() * 50) + 50; // Ensure vibrancy
-          const l = Math.floor(Math.random() * 60) + 20; // Ensure visibility
-          const rgb = hslToRgb(h, s, l);
-          const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
-          
-          if (!usedHex.has(hex)) {
-              usedHex.add(hex);
-              palette.push(createColorData(hex));
-          }
-          attempts++;
+  const usedHexes = new Set<string>();
+
+  // Helper to add unique color with retry logic
+  const addColor = (h: number, s: number, l: number) => {
+    // Normalize parameters
+    h = h % 360;
+    if (h < 0) h += 360;
+    s = Math.max(0, Math.min(100, s));
+    l = Math.max(0, Math.min(100, l));
+
+    let rgb = hslToRgb(h, s, l);
+    let hex = rgbToHex(rgb.r, rgb.g, rgb.b);
+    
+    // Retry logic to avoid duplicates
+    let attempts = 0;
+    while (usedHexes.has(hex) && attempts < 20) {
+      // Shift L first, then S to find a unique slot
+      if (attempts < 10) {
+         l = (l + 8) % 100;
+         if (l < 5) l = 10; // Avoid getting stuck at 0
+      } else {
+         s = (s + 15) % 100;
       }
-      // Fallback if constrained (unlikely with this logic)
+      
+      rgb = hslToRgb(h, s, l);
+      hex = rgbToHex(rgb.r, rgb.g, rgb.b);
+      attempts++;
+    }
+    
+    // If still duplicate (very rare), just accept it or fallback to random
+    if (usedHexes.has(hex)) {
+       hex = generateRandomColor();
+    }
+
+    usedHexes.add(hex);
+    palette.push(createColorData(hex));
+  };
+  
+  // 1. RANDOM MODE
+  // Allows full range of neutrals and colors
+  if (mode === 'random') {
       while (palette.length < count) {
-          palette.push(createColorData(generateRandomColor()));
+          const h = Math.floor(Math.random() * 360);
+          let s: number, l: number;
+          
+          const type = Math.random();
+          if (type < 0.15) { 
+              // Dark Neutral (Black-ish)
+              s = Math.random() * 20;
+              l = Math.random() * 12 + 3;
+          } else if (type < 0.3) {
+              // Light Neutral (White-ish)
+              s = Math.random() * 20;
+              l = Math.random() * 12 + 85;
+          } else if (type < 0.45) {
+              // Muted / Greyish
+              s = Math.random() * 30;
+              l = Math.random() * 60 + 20;
+          } else {
+              // Vibrant
+              s = Math.random() * 50 + 50;
+              l = Math.random() * 60 + 20;
+          }
+          
+          addColor(h, s, l);
       }
       return palette;
   }
 
-  // Logic for Structured Modes
-  let baseHue: number;
-  let baseSat: number;
-  let baseLit: number;
+  // SPECIAL MODERN MODES
+  if (mode === 'cyberpunk') {
+      // Dark Base, Light Neutral, High-Sat Neon Accents
+      
+      let baseH = Math.floor(Math.random() * 360);
+      if (baseColor) {
+         const rgb = hexToRgb(baseColor);
+         const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+         baseH = hsl.h;
+      }
+
+      // 1. Deep Dark Base (often slightly tinted)
+      addColor(baseH, 30, 6); 
+      
+      // 2. Bright Neutral Anchor (Silver/White)
+      addColor(baseH, 10, 92);
+
+      // 3. Primary Neon
+      // If we have a base color input, try to use it as the neon anchor if it's vibrant, otherwise shift
+      let neonH = baseH;
+      if (baseColor) {
+          const l = hexToRgb(baseColor) ? rgbToHsl(hexToRgb(baseColor).r, hexToRgb(baseColor).g, hexToRgb(baseColor).b).l : 50;
+          if (l < 30 || l > 80) neonH = (baseH + 180) % 360; 
+      }
+      addColor(neonH, 100, 60);
+
+      // 4. Secondary Neon (Triadic or Offset)
+      addColor((neonH + 120) % 360, 90, 60);
+
+      // 5. Tension/Clash Accent
+      addColor((neonH + 300) % 360, 100, 55);
+
+      while(palette.length < count) addColor(Math.random()*360, 100, 50);
+      return palette.slice(0, count);
+  }
+
+  if (mode === 'modern-ui') {
+      // High contrast: Light BG, Dark Text, Brand, Secondary, Muted
+      let brandH = Math.floor(Math.random() * 360);
+      if (baseColor) {
+         const rgb = hexToRgb(baseColor);
+         brandH = rgbToHsl(rgb.r, rgb.g, rgb.b).h;
+      }
+
+      // 1. Surface (White/Light Grey)
+      addColor(220, 5, 96);
+      
+      // 2. Text/Ink (Dark Grey/Blue-Black)
+      addColor(220, 15, 12);
+      
+      // 3. Primary Brand Color (Vibrant but legible)
+      addColor(brandH, 85, 50);
+      
+      // 4. Secondary Accent (Warm/Cool Balance)
+      // If brand is cool (green/blue/purple ~ 90-300), pick warm secondary.
+      const isCool = brandH > 90 && brandH < 300;
+      let secH = isCool ? (Math.random() * 80 + 330) % 360 : (Math.random() * 80 + 170) % 360;
+      addColor(secH, 80, 60);
+
+      // 5. Muted/Functional Support
+      addColor(brandH, 15, 90); // Brand tint
+
+      while(palette.length < count) addColor(Math.random()*360, 50, 50);
+      return palette.slice(0, count);
+  }
+
+  if (mode === 'retro-future') {
+      // Controlled Clashes & High Tension
+      let mainH = Math.floor(Math.random() * 360);
+      if (baseColor) {
+         const rgb = hexToRgb(baseColor);
+         mainH = rgbToHsl(rgb.r, rgb.g, rgb.b).h;
+      }
+
+      // 1. Main Anchor
+      addColor(mainH, 90, 50);
+
+      // 2. Immediate Clash (Analogous pushed too far)
+      addColor((mainH + 40) % 360, 100, 60);
+
+      // 3. Complementary Contrast
+      addColor((mainH + 180) % 360, 90, 50);
+
+      // 4. Split Tension
+      addColor((mainH + 210) % 360, 100, 55);
+
+      // 5. Deep Tone for grounding
+      addColor((mainH + 280) % 360, 80, 20);
+
+      while(palette.length < count) addColor(Math.random()*360, 80, 50);
+      return palette.slice(0, count);
+  }
+
+  // 2. STRUCTURED MODES (Classical)
+  let baseHue: number, baseSat: number, baseLit: number;
 
   if (baseColor) {
     const rgb = hexToRgb(baseColor);
@@ -124,8 +259,8 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
     baseLit = hsl.l;
   } else {
     baseHue = Math.floor(Math.random() * 360);
-    baseSat = Math.floor(Math.random() * 30) + 70;
-    baseLit = Math.floor(Math.random() * 40) + 30;
+    baseSat = Math.floor(Math.random() * 40) + 60; // 60-100 (Bias towards color)
+    baseLit = Math.floor(Math.random() * 40) + 30; // 30-70 (Bias towards mid-tones)
   }
 
   const hues: number[] = [];
@@ -134,50 +269,45 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
     case 'monochromatic':
         for (let i = 0; i < count; i++) hues.push(baseHue);
         break;
-        
     case 'analogous':
-        // Neighboring hues
         const spread = 30;
         const start = baseHue - (Math.floor((count - 1) / 2) * spread);
         for (let i = 0; i < count; i++) {
            hues.push((start + i * spread + 360) % 360);
         }
         break;
-        
     case 'triadic':
         for (let i = 0; i < count; i++) {
            hues.push((baseHue + i * 120) % 360);
         }
         break;
-        
     case 'tetradic':
-        // Rectangular Tetradic
         const t1 = baseHue;
         const t2 = (baseHue + 180) % 360;
         const t3 = (baseHue + 60) % 360;
         const t4 = (baseHue + 240) % 360;
         const sequence = [t1, t2, t3, t4];
-        
         for (let i = 0; i < count; i++) {
            hues.push(sequence[i % 4]);
         }
         break;
-        
     case 'split-complementary':
         const scBases = [baseHue, (baseHue + 150) % 360, (baseHue + 210) % 360];
         for (let i = 0; i < count; i++) {
              hues.push(scBases[i % 3]);
         }
         break;
-        
     case 'complementary':
     default:
-        // Alternating Base and Complement
         for (let i = 0; i < count; i++) {
            hues.push((baseHue + (i % 2) * 180) % 360);
         }
         break;
   }
+
+  // Determine Strategy for Neutrals
+  // If we are strictly generating (no baseColor) or have enough slots, inject neutrals.
+  const useNeutralTemplate = (!baseColor && Math.random() < 0.6) || (baseColor && count >= 5);
 
   for (let i = 0; i < count; i++) {
     let h = hues[i];
@@ -185,40 +315,50 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
     let l = baseLit;
 
     if (mode === 'monochromatic') {
-        if (count > 1) {
-             const step = 15;
-             const totalRange = (count - 1) * step;
-             let startL = baseLit - (totalRange / 2);
-             
-             if (startL < 15) startL = 15;
-             if (startL + totalRange > 90) startL = 90 - totalRange;
-             
-             l = startL + (i * step);
-             const lightingDiff = l - baseLit;
-             s = baseSat - (lightingDiff * 0.3);
-             s = Math.max(10, Math.min(100, s));
-        }
-    } else if (mode === 'complementary' && count > 2) {
-        // Add variations to avoid duplicates in 5-color palettes
-        // Pattern: Base, Comp, Base(Tint), Comp(Shade), Base(Tone)
-        if (i === 2) { 
-            l = Math.min(95, l + 25); // Tint
-            s = Math.max(10, s - 5);
-        } else if (i === 3) {
-            l = Math.max(10, l - 25); // Shade
-            s = Math.min(100, s + 10);
-        } else if (i === 4) {
-            s = Math.max(0, s - 30); // Tone (Desaturated)
-            l = Math.max(20, Math.min(80, l + 10));
+        // Monochromatic Gradient
+        // Improved: Constrain L to colourful range (20-85) to avoid darks/neutrals.
+        const minL = 20;
+        const maxL = 85;
+        const range = maxL - minL;
+        const step = range / (Math.max(1, count - 1));
+        
+        l = minL + (i * step); 
+        
+        // Ensure saturation is high to avoid neutrals unless explicitly requested (via baseColor)
+        if (!baseColor) {
+             s = Math.max(60, s);
         }
     } else {
-        // Standard bounds for other modes
-        l = Math.max(20, Math.min(90, l));
-        s = Math.max(20, Math.min(100, s));
+        // Standard Structured Mode Logic
+        // Apply "Templates" if enabled and count is sufficient
+        if (useNeutralTemplate && count >= 4) {
+             const modIndex = i % 5;
+             if (modIndex === 2) { 
+                 // Light Neutral (Tint)
+                 l = 92 + (Math.random() * 6); // 92-98
+                 s = Math.min(s, Math.random() * 15); 
+             } else if (modIndex === 3) {
+                 // Dark Neutral (Shade)
+                 l = 8 + (Math.random() * 12); // 8-20
+                 s = Math.min(s, Math.random() * 20);
+             } else if (modIndex === 4) {
+                 // Vibrant Pop
+                 s = Math.min(100, s + 20);
+                 l = Math.max(40, Math.min(70, l));
+             } else {
+                 // Standard variation
+                 s = Math.max(0, Math.min(100, s + (Math.random() * 20 - 10)));
+                 l = Math.max(10, Math.min(90, l + (Math.random() * 20 - 10)));
+             }
+        } else {
+             // Fallback or Smaller Palettes
+             // Just slightly relax bounds
+             l = Math.max(10, Math.min(95, l));
+             s = Math.max(0, Math.min(100, s));
+        }
     }
 
-    const rgb = hslToRgb(h, s, l);
-    palette.push(createColorData(rgbToHex(rgb.r, rgb.g, rgb.b)));
+    addColor(h, s, l);
   }
 
   return palette;

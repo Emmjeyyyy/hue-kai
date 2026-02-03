@@ -16,7 +16,7 @@ export const Generator: React.FC = () => {
     setTimeout(() => {
         setColors(prev => {
         // Define allowed modes for the generator
-        const modes: PaletteMode[] = ['complementary', 'monochromatic', 'analogous', 'random'];
+        const modes: PaletteMode[] = ['complementary', 'monochromatic', 'analogous', 'random', 'cyberpunk', 'modern-ui', 'retro-future'];
         const selectedMode = modes[Math.floor(Math.random() * modes.length)];
 
         const newPalette = generatePalette(selectedMode, 5);

@@ -19,4 +19,4 @@ export interface HSL {
   l: number;
 }
 
-export type PaletteMode = 'analogous' | 'monochromatic' | 'triadic' | 'complementary' | 'split-complementary' | 'tetradic' | 'random';
+export type PaletteMode = 'analogous' | 'monochromatic' | 'triadic' | 'complementary' | 'split-complementary' | 'tetradic' | 'random' | 'cyberpunk' | 'modern-ui' | 'retro-future';
