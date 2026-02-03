@@ -87,6 +87,31 @@ export const generateRandomColor = (): string => {
 export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?: string): ColorData[] => {
   const palette: ColorData[] = [];
   
+  // Random Mode: Fully random, strict uniqueness
+  if (mode === 'random') {
+      const usedHex = new Set<string>();
+      let attempts = 0;
+      while (palette.length < count && attempts < 100) {
+          const h = Math.floor(Math.random() * 360);
+          const s = Math.floor(Math.random() * 50) + 50; // Ensure vibrancy
+          const l = Math.floor(Math.random() * 60) + 20; // Ensure visibility
+          const rgb = hslToRgb(h, s, l);
+          const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
+          
+          if (!usedHex.has(hex)) {
+              usedHex.add(hex);
+              palette.push(createColorData(hex));
+          }
+          attempts++;
+      }
+      // Fallback if constrained (unlikely with this logic)
+      while (palette.length < count) {
+          palette.push(createColorData(generateRandomColor()));
+      }
+      return palette;
+  }
+
+  // Logic for Structured Modes
   let baseHue: number;
   let baseSat: number;
   let baseLit: number;
@@ -99,22 +124,19 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
     baseLit = hsl.l;
   } else {
     baseHue = Math.floor(Math.random() * 360);
-    // Ensure base color is vivid enough for valid generation
     baseSat = Math.floor(Math.random() * 30) + 70;
     baseLit = Math.floor(Math.random() * 40) + 30;
   }
 
   const hues: number[] = [];
   
-  // Strict hue calculation
   switch (mode) {
     case 'monochromatic':
         for (let i = 0; i < count; i++) hues.push(baseHue);
         break;
         
     case 'analogous':
-        // Neighboring hues within a narrow range (30 degrees).
-        // Centered around base if possible.
+        // Neighboring hues
         const spread = 30;
         const start = baseHue - (Math.floor((count - 1) / 2) * spread);
         for (let i = 0; i < count; i++) {
@@ -123,17 +145,13 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
         break;
         
     case 'triadic':
-        // Exactly 120 degrees apart
         for (let i = 0; i < count; i++) {
            hues.push((baseHue + i * 120) % 360);
         }
         break;
         
     case 'tetradic':
-        // Rectangular Tetradic: Two complementary pairs.
-        // Pair 1: Base, Base + 180
-        // Pair 2: Base + 60, Base + 240
-        // Ordered as Base, Comp, Offset, OffsetComp for visual pairing
+        // Rectangular Tetradic
         const t1 = baseHue;
         const t2 = (baseHue + 180) % 360;
         const t3 = (baseHue + 60) % 360;
@@ -145,26 +163,18 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
         }
         break;
         
-    case 'complementary':
-        // Directly opposite (180 degrees)
-        for (let i = 0; i < count; i++) {
-           hues.push((baseHue + (i % 2) * 180) % 360);
-        }
-        break;
-        
     case 'split-complementary':
-        // Base, Base + 150, Base + 210
         const scBases = [baseHue, (baseHue + 150) % 360, (baseHue + 210) % 360];
         for (let i = 0; i < count; i++) {
              hues.push(scBases[i % 3]);
         }
         break;
         
-    case 'random':
+    case 'complementary':
     default:
-        hues.push(baseHue);
-        for (let i = 1; i < count; i++) {
-           hues.push(Math.floor(Math.random() * 360));
+        // Alternating Base and Complement
+        for (let i = 0; i < count; i++) {
+           hues.push((baseHue + (i % 2) * 180) % 360);
         }
         break;
   }
@@ -175,55 +185,34 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
     let l = baseLit;
 
     if (mode === 'monochromatic') {
-        // Strict Monochromatic: Vary only S and L
-        if (count === 2) {
-             // For 2 colors (e.g. Color Wheel mode), first is base, second is controlled variant
-             if (i === 0) {
-                 s = baseSat;
-                 l = baseLit;
-             } else {
-                 // Determine direction: if base is light (>50), go darker. If dark/mid, go lighter.
-                 // This ensures contrast without washing out.
-                 const isLight = baseLit > 50;
-                 const shift = isLight ? -25 : 25;
-                 
-                 l = baseLit + shift;
-                 
-                 // Clamp lightness to keep it visible/colored (avoiding white/black)
-                 l = Math.max(15, Math.min(85, l));
-                 
-                 // Subtle saturation adjustment to maintain visual intensity
-                 // If lightening, slightly desaturate to avoid neon pastel look
-                 // If darkening, slightly saturate to avoid muddy look
-                 if (shift > 0) s = Math.max(10, baseSat - 10);
-                 else s = Math.min(100, baseSat + 10);
-             }
-        } else {
-             // For ramp generation (count > 2), create a gradient centered around base
+        if (count > 1) {
              const step = 15;
              const totalRange = (count - 1) * step;
-             
-             // Center the ramp around baseLit
              let startL = baseLit - (totalRange / 2);
              
-             // Slide window if out of bounds [15, 85]
              if (startL < 15) startL = 15;
-             if (startL + totalRange > 85) startL = 85 - totalRange;
+             if (startL + totalRange > 90) startL = 90 - totalRange;
              
              l = startL + (i * step);
-             
-             // Saturation compensation: 
-             // Lighter colors get slightly less saturated, darker get slightly more.
              const lightingDiff = l - baseLit;
              s = baseSat - (lightingDiff * 0.3);
              s = Math.max(10, Math.min(100, s));
         }
-    } else if (mode === 'random') {
-         s = Math.floor(Math.random() * 50) + 50;
-         l = Math.floor(Math.random() * 60) + 20;
+    } else if (mode === 'complementary' && count > 2) {
+        // Add variations to avoid duplicates in 5-color palettes
+        // Pattern: Base, Comp, Base(Tint), Comp(Shade), Base(Tone)
+        if (i === 2) { 
+            l = Math.min(95, l + 25); // Tint
+            s = Math.max(10, s - 5);
+        } else if (i === 3) {
+            l = Math.max(10, l - 25); // Shade
+            s = Math.min(100, s + 10);
+        } else if (i === 4) {
+            s = Math.max(0, s - 30); // Tone (Desaturated)
+            l = Math.max(20, Math.min(80, l + 10));
+        }
     } else {
-        // For other strict modes (Comp, Triad, Tetrad, Analog), 
-        // keep S and L consistent to emphasize the Hue relationship.
+        // Standard bounds for other modes
         l = Math.max(20, Math.min(90, l));
         s = Math.max(20, Math.min(100, s));
     }

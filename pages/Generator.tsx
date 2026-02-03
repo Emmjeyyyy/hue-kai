@@ -3,7 +3,7 @@ import { RefreshCw } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { ColorCard, CyberButton } from '../components/UI';
 import { generatePalette } from '../utils/colorUtils';
-import { ColorData } from '../types';
+import { ColorData, PaletteMode } from '../types';
 
 export const Generator: React.FC = () => {
   const [colors, setColors] = useState<ColorData[]>([]);
@@ -15,12 +15,18 @@ export const Generator: React.FC = () => {
     // Simulate slight calculation delay for "heavy machinery" feel
     setTimeout(() => {
         setColors(prev => {
-        const newPalette = generatePalette('random', 5);
+        // Define allowed modes for the generator
+        const modes: PaletteMode[] = ['complementary', 'monochromatic', 'analogous', 'random'];
+        const selectedMode = modes[Math.floor(Math.random() * modes.length)];
+
+        const newPalette = generatePalette(selectedMode, 5);
+        
         if (prev.length === 0) return newPalette;
         
         return prev.map((c, i) => {
             if (c.locked) return c;
-            return newPalette[i];
+            // Handle case where new palette might be shorter than current (though strictly 5 here)
+            return newPalette[i] || newPalette[0]; 
         });
         });
         setLoading(false);
