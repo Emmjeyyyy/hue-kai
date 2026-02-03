@@ -104,6 +104,7 @@ export const Generator: React.FC = () => {
                         onClick={() => handleCountChange(-1)}
                         disabled={count <= 1}
                         className="w-8 h-8 p-0 flex items-center justify-center rounded-full"
+                        variant="dark"
                     >
                         <Minus size={14} />
                     </CyberButton>
@@ -114,6 +115,7 @@ export const Generator: React.FC = () => {
                         onClick={() => handleCountChange(1)}
                         disabled={count >= 10}
                         className="w-8 h-8 p-0 flex items-center justify-center rounded-full"
+                        variant="dark"
                     >
                         <Plus size={14} />
                     </CyberButton>

@@ -6,63 +6,107 @@ export const CyberButton: React.FC<{
   onClick?: () => void; 
   children: React.ReactNode; 
   className?: string;
-  variant?: 'primary' | 'secondary' | 'danger';
+  variant?: 'primary' | 'secondary' | 'danger' | 'dark';
   pressed?: boolean;
   disabled?: boolean;
 }> = ({ onClick, children, className = '', variant = 'primary', pressed = false, disabled = false }) => {
   
-  // Removed active:scale-95 from base to handle it per-variant (scale conflicts with 3D translation)
-  // Added transition-transform and ease-out for smooth mechanical movement
-  // Added disabled styles
-  const baseStyle = "relative font-mono font-bold uppercase tracking-wider transition-transform duration-100 ease-out group isolate disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed";
+  // REFACTOR NOTE:
+  // We have moved the inner content (text/icon) movement logic from the parent's CSS (using [&>span])
+  // to the span itself using `group-hover` and `group-active`. 
+  // This ensures reliability and fixes issues where the text remained static.
   
-  // Refined Primary Variant (3D Effect):
-  // - Uses '::before' as the fixed depth layer (darker extrusion)
-  // - Uses '::after' as the face layer (bright gradient)
-  // - On Hover: Button translates up (-2px), depth layer elongates (+8px relative) to anchor bottom.
-  // - On Active: Button translates down (+4px), depth layer collapses (+2px relative) for a physical press feel.
+  const baseStyle = "relative font-mono font-bold uppercase tracking-wider group isolate disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed";
+  
   const variants = {
     primary: `
       bg-transparent text-white
       
-      /* DEPTH LAYER (Extrusion) */
+      /* DEPTH LAYER (Static Anchor) */
       before:content-[''] before:absolute before:inset-0 before:z-[-2] before:rounded-full
       before:bg-[linear-gradient(95deg,#FFD700_0%,#F97316_20%,#EF4444_40%,#EC4899_60%,#A855F7_80%,#581C87_100%)]
       before:brightness-[0.6] before:saturate-[1.2]
       before:translate-y-[6px]
-      before:transition-transform before:duration-100 before:ease-out
       
-      /* FACE LAYER (Surface) */
+      /* FACE LAYER (Moving Surface) */
       after:content-[''] after:absolute after:inset-0 after:z-[-1] after:rounded-full
       after:bg-[linear-gradient(95deg,#FFD700_0%,#F97316_20%,#EF4444_40%,#EC4899_60%,#A855F7_80%,#581C87_100%)]
       after:shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_2px_8px_rgba(0,0,0,0.3)]
+      after:transition-transform after:duration-100 after:ease-out
       
-      /* HOVER STATE */
-      hover:-translate-y-[2px]
-      hover:before:translate-y-[8px]
+      /* HOVER STATE (Face Only) */
+      hover:after:-translate-y-[2px]
       hover:after:brightness-110 
       hover:after:shadow-[inset_0_1px_2px_rgba(255,255,255,0.6),0_0_25px_rgba(236,72,153,0.6)]
       
-      /* ACTIVE STATE (PRESS) */
-      active:translate-y-[4px]
-      active:before:translate-y-[2px]
+      /* ACTIVE STATE (Face Only) */
+      active:after:translate-y-[4px]
       active:after:brightness-100
       active:after:shadow-none
     `,
+    
     secondary: "bg-chroma-violet border border-chroma-cyan/50 text-chroma-cyan hover:bg-chroma-cyan/10 hover:shadow-[0_0_15px_rgba(0,255,255,0.4)] shadow-lg active:scale-95 transition-all duration-200",
-    danger: "bg-red-600 text-white border-b-4 border-r-4 border-red-900 hover:bg-red-500 shadow-lg active:scale-95 transition-all duration-200"
+    
+    danger: "bg-red-600 text-white border-b-4 border-r-4 border-red-900 hover:bg-red-500 shadow-lg active:scale-95 transition-all duration-200",
+    
+    dark: `
+      bg-transparent text-gray-400
+      
+      /* DEPTH LAYER (Static Anchor) */
+      before:content-[''] before:absolute before:inset-0 before:z-[-2] before:rounded-full
+      before:bg-[#111111]
+      before:border-b before:border-l before:border-r before:border-white/10
+      before:translate-y-[6px]
+      
+      /* FACE LAYER (Moving Surface) */
+      after:content-[''] after:absolute after:inset-0 after:z-[-1] after:rounded-full
+      after:bg-[#1f1f22]
+      after:border after:border-white/10
+      after:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_2px_5px_rgba(0,0,0,0.5)]
+      after:transition-transform after:duration-100 after:ease-out
+
+      /* HOVER STATE (Face Only) */
+      hover:after:-translate-y-[2px]
+      hover:text-white
+      hover:after:bg-[#27272a]
+      hover:after:border-white/20
+      hover:after:shadow-[inset_0_1px_2px_rgba(255,255,255,0.15),0_0_10px_rgba(255,255,255,0.05)]
+      
+      /* ACTIVE STATE (Face Only) */
+      active:after:translate-y-[4px]
+      active:after:bg-[#1f1f22]
+      active:after:shadow-none
+      active:after:border-white/10
+    `
   };
 
-  // Styles that mimic the 'active' state, applied when pressed={true}
-  // We include hover overrides to ensure the pressed state takes precedence even if mouse is hovering
+  // Styles that mimic the 'active' state for the Button/Face when pressed={true}
   const pressedStyles = {
     primary: `
-      translate-y-[4px] before:translate-y-[2px] after:brightness-100 after:shadow-none
-      hover:translate-y-[4px] hover:before:translate-y-[2px] hover:after:brightness-100 hover:after:shadow-none
+      after:translate-y-[4px] after:brightness-100 after:shadow-none
+      hover:after:translate-y-[4px] hover:after:brightness-100 hover:after:shadow-none
     `,
     secondary: "scale-95 shadow-none hover:scale-95 hover:shadow-none",
-    danger: "scale-95 shadow-none hover:scale-95 hover:shadow-none"
+    danger: "scale-95 shadow-none hover:scale-95 hover:shadow-none",
+    dark: `
+      after:translate-y-[4px] after:bg-[#1f1f22] after:shadow-none after:border-white/10
+      hover:after:translate-y-[4px] hover:after:bg-[#1f1f22] hover:after:shadow-none
+    `
   };
+
+  // Determine classes for the inner content (text/icon)
+  const is3D = variant === 'primary' || variant === 'dark';
+  let contentClasses = "relative z-10 flex items-center justify-center gap-2 drop-shadow-md select-none transition-transform duration-100 ease-out";
+  
+  if (is3D) {
+    if (pressed) {
+      // Locked in pressed state
+      contentClasses += " translate-y-[4px]";
+    } else {
+      // Normal interactive state: Up on Hover, Down on Active
+      contentClasses += " group-hover:-translate-y-[2px] group-active:translate-y-[4px]";
+    }
+  }
 
   return (
     <button 
@@ -70,7 +114,7 @@ export const CyberButton: React.FC<{
       disabled={disabled}
       className={`${baseStyle} ${variants[variant]} ${pressed ? pressedStyles[variant] : ''} px-8 py-3 ${className}`}
     >
-      <span className="relative z-10 flex items-center justify-center gap-2 drop-shadow-md select-none">{children}</span>
+      <span className={contentClasses}>{children}</span>
     </button>
   );
 };
