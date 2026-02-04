@@ -263,13 +263,18 @@ interface Vibe {
 
 const getWeightedVibe = (): Vibe => {
   const r = Math.random();
-  // Expanded logic for more diversity.
-  // 35% Vivid, 20% Bright, 15% Pastel, 10% Deep, 15% Dynamic (Full Range), 5% Muted
-  if (r < 0.35) return { name: 'vivid', sMin: 70, sMax: 100, lMin: 40, lMax: 65 };
-  if (r < 0.55) return { name: 'bright', sMin: 60, sMax: 90, lMin: 80, lMax: 95 };
-  if (r < 0.70) return { name: 'pastel', sMin: 30, sMax: 60, lMin: 85, lMax: 96 };
+  // Revised logic to reduce frequency of washed-out pastels
+  // 40% Vivid (High Energy)
+  if (r < 0.40) return { name: 'vivid', sMin: 70, sMax: 100, lMin: 40, lMax: 65 };
+  // 25% Bright (Good for UI, high L but good S)
+  if (r < 0.65) return { name: 'bright', sMin: 60, sMax: 90, lMin: 70, lMax: 90 }; 
+  // 15% Deep (Darker, richer)
   if (r < 0.80) return { name: 'deep', sMin: 40, sMax: 80, lMin: 15, lMax: 35 };
-  if (r < 0.95) return { name: 'dynamic', sMin: 20, sMax: 100, lMin: 20, lMax: 90 };
+  // 10% Dynamic (Full Range)
+  if (r < 0.90) return { name: 'dynamic', sMin: 20, sMax: 100, lMin: 20, lMax: 90 };
+  // 5% Pastel (The washed out look, kept rare)
+  if (r < 0.95) return { name: 'pastel', sMin: 30, sMax: 60, lMin: 85, lMax: 96 };
+  // 5% Muted
   return { name: 'muted', sMin: 5, sMax: 30, lMin: 40, lMax: 70 };
 };
 
@@ -288,6 +293,85 @@ const areColorsTooSimilar = (h1: number, s1: number, l1: number, h2: number, s2:
     }
     return false;
 }
+
+// Ensure palette is not "washed out" or boring
+const enforceContrastAndVibrancy = (palette: ColorData[]): ColorData[] => {
+    if (palette.length < 2) return palette;
+
+    const hsls = palette.map(c => {
+        const rgb = hexToRgb(c.hex);
+        return rgbToHsl(rgb.r, rgb.g, rgb.b);
+    });
+
+    // Metrics
+    const lValues = hsls.map(c => c.l);
+    const minL = Math.min(...lValues);
+    const maxL = Math.max(...lValues);
+    const rangeL = maxL - minL;
+    
+    // Check for "Washed Out" (Cluster of High L, Mid S)
+    const washedOutCount = hsls.filter(c => c.l > 75 && c.s < 70).length;
+    const isWashedOut = washedOutCount / palette.length >= 0.7; // 70% or more are washed out
+
+    // Check for "Dull" (Low Saturation everywhere)
+    const dullCount = hsls.filter(c => c.s < 30).length;
+    const isDull = dullCount / palette.length >= 0.8;
+
+    // Check for "Flat" (No lightness contrast)
+    const isFlat = rangeL < 25;
+
+    let modified = false;
+
+    if (isWashedOut) {
+        // Inject a deep anchor
+        // Usually index 0 or random
+        const idx = 0;
+        hsls[idx].l = randomInt(15, 30);
+        hsls[idx].s = Math.max(hsls[idx].s, 50); // Ensure it has some color
+        modified = true;
+        
+        // If we have many colors, inject a vibrant accent too
+        if (palette.length >= 4) {
+             const idx2 = palette.length - 1;
+             hsls[idx2].l = randomInt(45, 60);
+             hsls[idx2].s = randomInt(80, 100);
+        }
+    } else if (isDull) {
+        // Inject a Vivid Pop
+        const idx = randomInt(0, palette.length - 1);
+        hsls[idx].s = randomInt(85, 100);
+        hsls[idx].l = randomInt(50, 65);
+        modified = true;
+    } else if (isFlat) {
+        // Stretch contrast
+        // Find brightest and darkest indices
+        let minIdx = 0, maxIdx = 0;
+        hsls.forEach((c, i) => {
+            if (c.l < hsls[minIdx].l) minIdx = i;
+            if (c.l > hsls[maxIdx].l) maxIdx = i;
+        });
+
+        // Push extremes
+        if (hsls[minIdx].l > 20) {
+            hsls[minIdx].l = Math.max(5, hsls[minIdx].l - 25);
+            modified = true;
+        }
+        if (hsls[maxIdx].l < 85) {
+             hsls[maxIdx].l = Math.min(98, hsls[maxIdx].l + 15);
+             modified = true;
+        }
+    }
+
+    if (modified) {
+        return hsls.map(h => {
+             const rgb = hslToRgb(h.h, h.s, h.l);
+             const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
+             return createColorData(hex);
+        });
+    }
+
+    return palette;
+};
 
 // --- GENERATION ENGINE ---
 
@@ -364,12 +448,15 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
         if (mode === 'random') {
             const strategies = [
                 'golden-ratio', 'analogous-walk', 'triadic-scatter', 
-                'neutral-pop', 'pastel-dream', 'high-contrast-clash',
+                'neutral-pop', 'high-contrast-clash', // Removed pastel-dream from main random list to make it rarer (it depends on Vibe now or luck)
                 'monochromatic-texture', 'structural-duo', 'structural-trio', 
                 'anchor-focus', 'polychrome', 'divergent', 
                 'complex-rhythm', 'cinematic'
             ];
             
+            // Re-inject pastel-dream with low probability
+            if (chance(0.05)) strategies.push('pastel-dream');
+
             const strategy = strategies[Math.floor(Math.random() * strategies.length)];
             strategyUsed = strategy;
             let currentH = baseH;
@@ -573,6 +660,14 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
         while(palette.length < count) safeAddColor(randomInt(0, 360), randomInt(50, 90), randomInt(40, 60));
 
         let finalPalette = palette.slice(0, count);
+
+        // --- ENFORCE CONTRAST & VIBRANCY ---
+        // Post-processing to avoid washed-out/dull palettes (unless strict mode like mono)
+        // We only skip this for monochromatic/shades which have their own strict logic
+        if (mode !== 'monochromatic' && mode !== 'shades') {
+            finalPalette = enforceContrastAndVibrancy(finalPalette);
+        }
+
         const noShuffleModes = ['monochromatic', 'analogous', 'warm-earth', 'hyper-warm'];
         
         if (!noShuffleModes.includes(mode)) {
