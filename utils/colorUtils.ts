@@ -84,6 +84,68 @@ export const generateRandomColor = (): string => {
   return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
 };
 
+export const sortColorsByVisualProgression = (colors: ColorData[]): ColorData[] => {
+    const getVals = (c: ColorData) => {
+         const rgb = hexToRgb(c.hex);
+         return rgbToHsl(rgb.r, rgb.g, rgb.b);
+    };
+
+    // Store HSL values to avoid re-calculation during sort
+    const withVals = colors.map(c => ({ data: c, hsl: getVals(c) }));
+    
+    // Split into Achromatic (Low Saturation) and Chromatic
+    // Threshold 12% matches "almost grey" visual perception
+    const chromatic: typeof withVals = [];
+    const achromatic: typeof withVals = [];
+    
+    for (const item of withVals) {
+        if (item.hsl.s < 12) { 
+            achromatic.push(item);
+        } else {
+            chromatic.push(item);
+        }
+    }
+    
+    // Sort Achromatic by Lightness (Dark to Light)
+    achromatic.sort((a, b) => a.hsl.l - b.hsl.l);
+    
+    // Sort Chromatic by Hue (Spectral)
+    if (chromatic.length > 0) {
+        chromatic.sort((a, b) => a.hsl.h - b.hsl.h);
+        
+        // Find largest gap to rotate for visual continuity (Red wrap-around)
+        let maxGap = 0;
+        let gapIndex = 0;
+        
+        for (let i = 0; i < chromatic.length; i++) {
+            const curr = chromatic[i].hsl.h;
+            const next = chromatic[(i + 1) % chromatic.length].hsl.h;
+            // Calculate distance in 360 circle
+            let diff = next - curr;
+            if (diff < 0) diff += 360;
+            
+            // We look for the largest "jump" in hue. This jump represents the
+            // natural break point in the color wheel for this specific palette.
+            if (diff > maxGap) {
+                maxGap = diff;
+                gapIndex = i;
+            }
+        }
+        
+        // Rotate: The element AFTER the gap should be the start
+        const startIdx = (gapIndex + 1) % chromatic.length;
+        const rotated = [
+            ...chromatic.slice(startIdx),
+            ...chromatic.slice(0, startIdx)
+        ];
+        
+        chromatic.splice(0, chromatic.length, ...rotated);
+    }
+    
+    // Combine: Achromatic first to act as anchors, then Chromatic spectrum
+    return [...achromatic.map(x => x.data), ...chromatic.map(x => x.data)];
+};
+
 // --- INTERNAL LOGIC & STATE ---
 
 const randomRange = (min: number, max: number) => Math.random() * (max - min) + min;
@@ -472,6 +534,33 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
       }
   }
 
+  else if (mode === 'warm-earth') {
+      // Grounded base tones (Deep Reds/Browns) -> Bright Highlights (Yellows/Golds)
+      // Start Hue: Red/Orange region (approx 350 to 20)
+      const startH = (randomInt(350, 390)) % 360; // 350...360...30 range
+      const totalShift = randomInt(30, 60); // Shift clockwise towards yellow
+      
+      const startL = randomInt(15, 25); // Deep dark ground
+      const endL = randomInt(65, 85);   // Bright highlight
+      
+      for(let i=0; i<count; i++) {
+          const progress = i / (count - 1 || 1);
+          
+          // Hue progression: Rotates from Red -> Orange -> Yellow
+          const currentH = (startH + (progress * totalShift)) % 360;
+          
+          // Saturation: Earthy tones usually start rich and get vibrant
+          // Curve: Mid-high -> High with natural variance
+          const s = clamp(randomInt(50, 80) + (progress * 20), 40, 100);
+          
+          // Lightness: Linear-ish progression from deep to bright
+          // Add slight noise to avoid mechanical look
+          const l = clamp(startL + (progress * (endL - startL)) + randomInt(-5, 5), 10, 95);
+          
+          safeAddColor(currentH, s, l);
+      }
+  }
+
   else if (mode === 'cyberpunk') {
       const subTheme = Math.random();
       if (subTheme < 0.33) { 
@@ -596,13 +685,16 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
   // Almost always shuffle to avoid predictable gradients unless it's specific modes
   let result = palette.slice(0, count);
   
-  if (mode !== 'monochromatic' && mode !== 'analogous') {
+  // Do NOT shuffle for warm-earth to maintain gradient progression
+  const noShuffleModes = ['monochromatic', 'analogous', 'warm-earth'];
+  
+  if (!noShuffleModes.includes(mode)) {
      for (let i = result.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [result[i], result[j]] = [result[j], result[i]];
      }
-  } else if (chance(0.5)) {
-      // Sometimes shuffle mono/analogous too
+  } else if (mode !== 'warm-earth' && chance(0.5)) {
+      // Sometimes shuffle mono/analogous, but never warm-earth
       for (let i = result.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [result[i], result[j]] = [result[j], result[i]];

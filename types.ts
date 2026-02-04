@@ -31,4 +31,5 @@ export type PaletteMode =
   | 'random' 
   | 'cyberpunk' 
   | 'modern-ui' 
-  | 'retro-future';
+  | 'retro-future'
+  | 'warm-earth';

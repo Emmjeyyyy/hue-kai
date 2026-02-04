@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, Plus, Minus } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { ColorCard, CyberButton } from '../components/UI';
-import { generatePalette } from '../utils/colorUtils';
+import { generatePalette, sortColorsByVisualProgression } from '../utils/colorUtils';
 import { ColorData, PaletteMode } from '../types';
 
 export const Generator: React.FC = () => {
@@ -16,29 +16,35 @@ export const Generator: React.FC = () => {
     // Simulate slight calculation delay for "heavy machinery" feel
     setTimeout(() => {
         setColors(prev => {
-            // Updated Mode List with new strategies
+            // 1. Identify Locked Colors to Keep
+            // We slice prev to 'count' first to ensure we don't keep locked colors that are outside the bounds if count was reduced
+            const lockedColors = prev.slice(0, count).filter(c => c.locked);
+            
+            // 2. Calculate how many fresh colors we need
+            const needed = count - lockedColors.length;
+            
+            // 3. Select Mode
             const modes: PaletteMode[] = [
                 'random', 'random', 'random', // Higher weight for smart random
-                'compound', 'shades', 'modern-ui', 'cyberpunk', 'retro-future',
+                'compound', 'shades', 'modern-ui', 'cyberpunk', 'retro-future', 'warm-earth',
                 'complementary', 'analogous', 'triadic', 'split-complementary'
             ];
-            
             const selectedMode = modes[Math.floor(Math.random() * modes.length)];
 
-            // Generate enough colors for the requested count
-            const newPalette = generatePalette(selectedMode, count);
+            // 4. Generate New Colors
+            // We generate 'count' colors (a full scheme) and then take the 'needed' amount.
+            // This ensures the new colors are harmonized with each other.
+            let generatedPalette = generatePalette(selectedMode, count);
+            const newColors = generatedPalette.slice(0, needed);
             
-            // Merge logic: Preserve locked colors if they exist within the new count range
-            const newColors: ColorData[] = [];
-            for (let i = 0; i < count; i++) {
-                if (i < prev.length && prev[i].locked) {
-                    newColors.push(prev[i]);
-                } else {
-                    // Fill with new generated color
-                    newColors.push(newPalette[i] || newPalette[0]);
-                }
-            }
-            return newColors;
+            // 5. Combine Locked + New
+            const combined = [...lockedColors, ...newColors];
+            
+            // 6. Sort for Visual Coherence
+            // This arranges the colors (locked and new) into a pleasing spectrum or gradient
+            const sorted = sortColorsByVisualProgression(combined);
+            
+            return sorted;
         });
         setLoading(false);
     }, 150);
