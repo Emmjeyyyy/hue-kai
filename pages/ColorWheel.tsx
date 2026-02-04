@@ -95,8 +95,8 @@ export const ColorWheel: React.FC = () => {
   const calculateColorFromInput = useCallback((clientX: number, clientY: number) => {
      if (!wheelRef.current) return;
      const rect = wheelRef.current.getBoundingClientRect();
-     const centerX = rect.width / 2;
      const centerY = rect.height / 2;
+     const centerX = rect.width / 2;
      
      const dx = clientX - rect.left - centerX;
      const dy = clientY - rect.top - centerY;
@@ -326,7 +326,7 @@ export const ColorWheel: React.FC = () => {
                  onClick={() => setMode(m)}
                  className={`px-3 py-1 text-xs font-mono border transition-all uppercase
                    ${mode === m 
-                     ? 'bg-chroma-accent text-black border-chroma-accent shadow-[0_0_10px_rgba(255,0,255,0.5)]' 
+                     ? 'bg-chroma-cyan text-black border-chroma-cyan shadow-[0_0_10px_rgba(0,255,255,0.5)]' 
                      : 'bg-transparent text-gray-500 border-gray-700 hover:border-gray-500'
                    }`}
                >
