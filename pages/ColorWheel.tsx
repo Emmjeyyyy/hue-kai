@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Layout } from '../components/Layout';
 import { ColorCard } from '../components/UI';
-import { generatePalette, hslToRgb, rgbToHex } from '../utils/colorUtils';
+import { hslToRgb, rgbToHex, createColorData, hexToRgb, rgbToHsl } from '../utils/colorUtils';
 import { ColorData, PaletteMode } from '../types';
 
 export const ColorWheel: React.FC = () => {
@@ -10,34 +10,84 @@ export const ColorWheel: React.FC = () => {
   const [lightness, setLightness] = useState(50);
   const [mode, setMode] = useState<PaletteMode>('complementary');
   const [palette, setPalette] = useState<ColorData[]>([]);
+  const [manualHex, setManualHex] = useState('#FF0000');
   
   const wheelRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Update palette when base parameters change
+  // Update palette when base parameters change using Strict Harmony Logic
   useEffect(() => {
-    const rgb = hslToRgb(hue, saturation, lightness);
-    const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
-    
-    // Determine exact count based on mode requirements
-    let count = 5;
+    // Helper to generate ColorData from HSL
+    const createFromHsl = (h: number, s: number, l: number): ColorData => {
+        // Normalize
+        h = h % 360;
+        if (h < 0) h += 360;
+        s = Math.max(0, Math.min(100, s));
+        l = Math.max(0, Math.min(100, l));
+
+        const rgb = hslToRgb(h, s, l);
+        const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
+        return createColorData(hex);
+    };
+
+    // Update manual hex input to match current wheel state
+    // We do this here to ensure the input always reflects the actual generated color (snapping to HSL grid)
+    const currentRgb = hslToRgb(hue, saturation, lightness);
+    const currentHex = rgbToHex(currentRgb.r, currentRgb.g, currentRgb.b).toUpperCase();
+    setManualHex(currentHex);
+
+    const newPalette: ColorData[] = [];
+
+    // 1. Always place the Base Color (Selection) first
+    newPalette.push(createFromHsl(hue, saturation, lightness));
+
+    // 2. Generate remaining colors based on strict harmony rules with fixed counts and order
     switch (mode) {
-        case 'complementary':
         case 'monochromatic':
-            count = 2;
+            // Exact 2 colors: Base + Variation
+            // Fixed Logic: Use a moderate lightness shift (approx 15%) instead of a large jump (30%).
+            // This ensures #2F17E8 (L=50) produces something close to #5945ED (L=60) rather than #B0A7F1 (L=80).
+            // We also preserve saturation strictly to maintain vibrancy.
+            
+            let monoL = lightness > 75 ? lightness - 15 : lightness + 15;
+            
+            // Clamp lightness to ensure valid range (avoid sticking to pure black/white unless input is extreme)
+            monoL = Math.max(5, Math.min(95, monoL));
+
+            newPalette.push(createFromHsl(hue, saturation, monoL));
             break;
+
+        case 'complementary':
+            // Exact 2 colors: Base + Opposite
+            newPalette.push(createFromHsl(hue + 180, saturation, lightness));
+            break;
+
         case 'analogous':
+            // Exact 3 colors: Base + 2 Neighbors
+            newPalette.push(createFromHsl(hue + 30, saturation, lightness));
+            newPalette.push(createFromHsl(hue + 60, saturation, lightness));
+            break;
+
         case 'triadic':
-            count = 3;
+            // Exact 3 colors: Base + 120 + 240
+            newPalette.push(createFromHsl(hue + 120, saturation, lightness));
+            newPalette.push(createFromHsl(hue + 240, saturation, lightness));
             break;
+
         case 'tetradic':
-            count = 4;
+            // Exact 4 colors: Rectangular (Double Complementary)
+            // Base, Base+60, Base+180, Base+240
+            newPalette.push(createFromHsl(hue + 60, saturation, lightness));
+            newPalette.push(createFromHsl(hue + 180, saturation, lightness));
+            newPalette.push(createFromHsl(hue + 240, saturation, lightness));
             break;
+
         default:
-            count = 5;
+            // Fallback to complementary
+            newPalette.push(createFromHsl(hue + 180, saturation, lightness));
+            break;
     }
 
-    const newPalette = generatePalette(mode, count, hex);
     setPalette(newPalette);
   }, [hue, saturation, lightness, mode]);
 
@@ -51,15 +101,13 @@ export const ColorWheel: React.FC = () => {
      const dy = clientY - rect.top - centerY;
      
      // Calculate Angle (Hue)
-     // 0 deg at Top (CSS), but atan2 0 is Right.
-     // Formula: degrees = rad * 180/PI + 90.
      let angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
      if (angle < 0) angle += 360;
      
      const distance = Math.sqrt(dx * dx + dy * dy);
      const radius = rect.width / 2;
      
-     // Clamp saturation
+     // Clamp saturation (0 at center, 100 at edge)
      const newSat = Math.min(100, Math.max(0, (distance / radius) * 100));
      
      setHue(Math.round(angle));
@@ -80,6 +128,21 @@ export const ColorWheel: React.FC = () => {
     if (isDragging) {
         calculateColorFromInput(e.touches[0].clientX, e.touches[0].clientY);
     }
+  };
+
+  const handleHexInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const val = e.target.value;
+      setManualHex(val);
+
+      // Try to parse hex
+      const clean = val.startsWith('#') ? val : '#' + val;
+      if (/^#[0-9A-Fa-f]{6}$/.test(clean)) {
+          const rgb = hexToRgb(clean);
+          const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+          setHue(hsl.h);
+          setSaturation(hsl.s);
+          setLightness(hsl.l);
+      }
   };
 
   // Window listeners for mouse drag
@@ -106,6 +169,7 @@ export const ColorWheel: React.FC = () => {
   }, [isDragging, calculateColorFromInput]);
 
   const getHandleStyle = () => {
+    // Convert Hue back to geometric angle for positioning
     const angleRad = (hue - 90) * (Math.PI / 180);
     const distPercent = saturation / 2; // Map 0-100 sat to 0-50% radius
     const left = 50 + (distPercent * Math.cos(angleRad));
@@ -116,14 +180,37 @@ export const ColorWheel: React.FC = () => {
         top: `${top}%`,
         backgroundColor: palette[0]?.hex || '#fff',
         transform: 'translate(-50%, -50%)',
-        boxShadow: `0 0 10px 2px ${palette[0]?.hex || '#fff'}`,
+        boxShadow: `0 0 0 2px white, 0 0 10px 2px ${palette[0]?.hex || '#000'}`,
     };
   };
+
+  // Dynamic Wheel Background based on Lightness
+  const conicStops = [
+    `hsl(0, 100%, ${lightness}%)`,
+    `hsl(60, 100%, ${lightness}%)`,
+    `hsl(120, 100%, ${lightness}%)`,
+    `hsl(180, 100%, ${lightness}%)`,
+    `hsl(240, 100%, ${lightness}%)`,
+    `hsl(300, 100%, ${lightness}%)`,
+    `hsl(360, 100%, ${lightness}%)`,
+  ].join(', ');
+
+  const wheelBackground = `
+    radial-gradient(circle closest-side, hsl(0, 0%, ${lightness}%) 0%, transparent 100%),
+    conic-gradient(from 0deg, ${conicStops})
+  `;
 
   const harmonyModes: PaletteMode[] = ['complementary', 'monochromatic', 'analogous', 'triadic', 'tetradic'];
 
   return (
     <Layout>
+      {/* Hide cursor globally while dragging to improve immersion and precision feeling */}
+      {isDragging && (
+        <style>{`
+          body, body * { cursor: none !important; }
+        `}</style>
+      )}
+
       <div className="flex flex-col md:flex-row h-full overflow-hidden">
         {/* Left: Controls & Wheel */}
         <div className="w-full md:w-1/2 p-8 flex flex-col items-center justify-center relative bg-gradient-to-br from-gray-900 to-black border-r border-white/10 overflow-y-auto md:overflow-hidden">
@@ -132,17 +219,23 @@ export const ColorWheel: React.FC = () => {
             INPUT_MATRIX // H:{hue} S:{saturation} L:{lightness}
           </div>
 
+          {/* Hex Input Field */}
+          <div className="mb-10 relative group mt-8">
+             <input 
+               type="text" 
+               value={manualHex}
+               onChange={handleHexInputChange}
+               maxLength={7}
+               className="bg-black/30 border border-gray-700 rounded px-4 py-2 font-mono text-xl text-chroma-cyan focus:border-chroma-cyan focus:outline-none focus:shadow-[0_0_15px_rgba(0,255,255,0.3)] w-40 text-center uppercase tracking-widest transition-all hover:border-gray-500"
+               placeholder="#000000"
+             />
+          </div>
+
           {/* Color Wheel Implementation */}
           <div 
             className="relative w-64 h-64 md:w-80 md:h-80 rounded-full shadow-[0_0_50px_rgba(0,0,0,0.8)] cursor-crosshair select-none group"
             style={{
-              background: `
-                radial-gradient(circle, white 0%, transparent 70%),
-                conic-gradient(
-                  from 0deg,
-                  red, yellow, lime, aqua, blue, magenta, red
-                )
-              `,
+              background: wheelBackground,
               touchAction: 'none'
             }}
             ref={wheelRef}
@@ -157,7 +250,7 @@ export const ColorWheel: React.FC = () => {
             
             {/* Handle */}
             <div 
-              className="absolute w-6 h-6 border-2 border-white rounded-full pointer-events-none"
+              className="absolute w-5 h-5 rounded-full pointer-events-none transition-transform duration-75"
               style={getHandleStyle()}
             />
           </div>
