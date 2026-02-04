@@ -37,7 +37,7 @@ export const CyberButton: React.FC<{
       /* HOVER STATE (Face Only) */
       hover:after:-translate-y-[2px]
       hover:after:brightness-110 
-      hover:after:shadow-[inset_0_1px_2px_rgba(255,255,255,0.6),0_0_25px_rgba(236,72,153,0.6)]
+      hover:after:shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),0_0_12px_rgba(236,72,153,0.5)]
       
       /* ACTIVE STATE (Face Only) */
       active:after:translate-y-[4px]

@@ -2,7 +2,9 @@ import { ColorData, HSL, RGB, PaletteMode } from '../types';
 import { 
     converter, 
     differenceEuclidean, 
-    formatHex 
+    formatHex,
+    interpolate,
+    samples
 } from 'culori';
 
 // --- CULORI SETUP ---
@@ -272,20 +274,11 @@ const getWeightedVibe = (): Vibe => {
 
 // Check if two colors are perceptually too similar using Oklab Distance
 const areColorsTooSimilar = (h1: number, s1: number, l1: number, h2: number, s2: number, l2: number): boolean => {
-    // Construct Culori objects from HSL
     const c1 = { mode: 'hsl' as const, h: h1, s: s1/100, l: l1/100 };
     const c2 = { mode: 'hsl' as const, h: h2, s: s2/100, l: l2/100 };
     
-    // Calculate Euclidean distance in Oklab
-    // Oklab is perceptually uniform.
-    // Distance > 0.02 is usually JND (Just Noticeable Difference).
-    // Distance > 0.05 is clearly distinct.
     const dist = differenceEuclidean('oklab')(c1, c2);
-    
-    // Fallback if NaN
     if (typeof dist !== 'number' || isNaN(dist)) return false;
-
-    // Use a threshold that ensures colors are not just distinguishable but "different enough" for a palette
     return dist < 0.06;
 }
 
@@ -298,53 +291,39 @@ const enforceContrastAndVibrancy = (palette: ColorData[]): ColorData[] => {
         return o || { mode: 'oklch' as const, l: 0, c: 0, h: 0 };
     });
 
-    // Metrics in OKLCH
     const lValues = oklchColors.map(c => c.l);
     const minL = Math.min(...lValues);
     const maxL = Math.max(...lValues);
     const rangeL = maxL - minL;
     
-    // "Washed Out" Detection in OKLCH:
-    // High Lightness (> 0.85) and Low Chroma (< 0.1)
     const washedOutCount = oklchColors.filter(c => c.l > 0.85 && c.c < 0.1).length;
     const isWashedOut = washedOutCount / palette.length >= 0.7;
 
-    // "Dull" Detection:
-    // Low Chroma everywhere (< 0.05)
     const dullCount = oklchColors.filter(c => c.c < 0.05).length;
     const isDull = dullCount / palette.length >= 0.8;
 
-    // "Flat" Detection:
-    // Low dynamic range
     const isFlat = rangeL < 0.25;
 
     let modified = false;
 
-    // We apply fixes by modifying the OKLCH object then converting back
     if (isWashedOut) {
-        // Inject a deep anchor
         const idx = 0;
-        // Set L to ~0.25 (dark), ensure some chroma
         oklchColors[idx].l = randomRange(0.2, 0.3);
         if (oklchColors[idx].c < 0.05) oklchColors[idx].c = 0.1;
         modified = true;
         
-        // Inject vibrant accent
         if (palette.length >= 4) {
              const idx2 = palette.length - 1;
              oklchColors[idx2].l = randomRange(0.5, 0.7);
-             oklchColors[idx2].c = randomRange(0.15, 0.25); // Vibrant in Oklch
+             oklchColors[idx2].c = randomRange(0.15, 0.25);
              modified = true;
         }
     } else if (isDull) {
-        // Inject a Vivid Pop
         const idx = randomInt(0, palette.length - 1);
-        oklchColors[idx].c = randomRange(0.2, 0.3); // High chroma
+        oklchColors[idx].c = randomRange(0.2, 0.3); 
         oklchColors[idx].l = randomRange(0.5, 0.7);
         modified = true;
     } else if (isFlat) {
-        // Stretch contrast
-        // Find brightest and darkest indices
         let minIdx = 0, maxIdx = 0;
         oklchColors.forEach((c, i) => {
             if (c.l < oklchColors[minIdx].l) minIdx = i;
@@ -373,12 +352,20 @@ const enforceContrastAndVibrancy = (palette: ColorData[]): ColorData[] => {
 
 // --- GENERATION ENGINE ---
 
+interface GenerationResult {
+    colors: ColorData[];
+    skipShuffle?: boolean;
+    skipPostProcess?: boolean;
+}
+
 export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?: string): ColorData[] => {
     
     // Internal generator function
-    const generateCandidate = (): ColorData[] => {
+    const generateCandidate = (): GenerationResult => {
         const palette: ColorData[] = [];
         const paletteColors: {h: number, s: number, l: number}[] = [];
+        let skipShuffle = false;
+        let skipPostProcess = false;
 
         // 1. Determine Base Hue with Anti-Repetition
         let baseH: number, baseS: number, baseL: number;
@@ -391,7 +378,6 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
             baseS = hsl.s; 
             baseL = hsl.l;
         } else {
-            // Try to find a fresh hue
             let attempts = 0;
             do {
                 baseH = randomInt(0, 360);
@@ -412,7 +398,6 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
             l = clamp(l, 5, 98);
 
             for (const pc of paletteColors) {
-                // Uses improved Oklab distance check
                 if (areColorsTooSimilar(h, s, l, pc.h, pc.s, pc.l)) {
                     return false; 
                 }
@@ -442,7 +427,6 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
         };
 
         // --- MODE EXECUTION ---
-        // (Logic unchanged from original spec, using safeAddColor wrapper)
         
         let strategyUsed = "";
 
@@ -452,7 +436,9 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
                 'neutral-pop', 'high-contrast-clash',
                 'monochromatic-texture', 'structural-duo', 'structural-trio', 
                 'anchor-focus', 'polychrome', 'divergent', 
-                'complex-rhythm', 'cinematic'
+                'complex-rhythm', 'cinematic',
+                // ADVANCED COLOR FX (Probabilistic injection)
+                'smooth-gradient', 'iridescent-flow', 'neon-maximalist'
             ];
             
             if (chance(0.05)) strategies.push('pastel-dream');
@@ -462,6 +448,74 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
             let currentH = baseH;
 
             switch(strategy) {
+                    // --- NEW ADVANCED FX ---
+                    case 'smooth-gradient': {
+                        // Generate a perceptually uniform gradient
+                        // We pick start and end points in OKLCH to ensure vibrancy
+                        const start = { mode: 'oklch' as const, l: randomRange(0.4, 0.9), c: randomRange(0.1, 0.3), h: randomInt(0, 360) };
+                        // Ensure end is distinct but related
+                        const hueShift = chance(0.5) ? randomInt(60, 120) : randomInt(180, 240);
+                        const end = { mode: 'oklch' as const, l: randomRange(0.2, 0.8), c: randomRange(0.1, 0.3), h: (start.h + hueShift) % 360 };
+                        
+                        const interpolator = interpolate([start, end], 'oklab'); // Oklab interpolation for smoothness
+                        const steps = count;
+                        // Use Culori samples to generate 'count' steps from 0 to 1
+                        const gradientColors = samples(steps).map(interpolator).map(formatHex);
+                        
+                        gradientColors.forEach(hex => {
+                            if(hex) palette.push(createColorData(hex));
+                        });
+                        
+                        skipShuffle = true; // Gradients must order strictly
+                        skipPostProcess = true; // Gradients are intentional
+                        break;
+                    }
+
+                    case 'iridescent-flow': {
+                        // Simulates surface interference (pearl or oil slick)
+                        // Characteristic: High hue shift density, constant chroma/lightness
+                        const type = chance(0.7) ? 'pearl' : 'oil';
+                        const baseL = type === 'pearl' ? randomRange(0.85, 0.96) : randomRange(0.15, 0.25);
+                        const baseC = type === 'pearl' ? randomRange(0.02, 0.1) : randomRange(0.1, 0.2); // Oil has more chroma
+                        const startHue = randomInt(0, 360);
+                        const hueStep = randomRange(10, 20); // Small steps
+                        
+                        for(let i=0; i<count; i++) {
+                            const oklch = {
+                                mode: 'oklch' as const,
+                                l: baseL + randomRange(-0.02, 0.02),
+                                c: baseC,
+                                h: (startHue + (i * hueStep)) % 360
+                            };
+                            const hex = formatHex(oklch);
+                            if(hex) palette.push(createColorData(hex));
+                        }
+                        
+                        skipShuffle = true;
+                        skipPostProcess = true; // Iridescence is naturally low-contrast/flat
+                        break;
+                    }
+
+                    case 'neon-maximalist': {
+                        // High Energy: Maximize Chroma in Oklch
+                        // Oklch chroma can go up to ~0.37, generally >0.2 is very vivid
+                        for(let i=0; i<count; i++) {
+                             // Distribute hues for maximum contrast
+                             const h = (baseH + (i * (360/count)) + randomInt(-20, 20)) % 360;
+                             const oklch = {
+                                 mode: 'oklch' as const,
+                                 l: randomRange(0.6, 0.85), // Light enough to glow
+                                 c: randomRange(0.2, 0.32), // Extremely vivid
+                                 h: h
+                             };
+                             const hex = formatHex(oklch);
+                             if(hex) palette.push(createColorData(hex));
+                        }
+                        // Don't skip shuffle/post-process, let it feel organic but intense
+                        break;
+                    }
+
+                    // --- EXISTING STRATEGIES ---
                     case 'polychrome': {
                         const slice = 360 / count;
                         const offset = randomInt(0, 360);
@@ -662,24 +716,25 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
         let finalPalette = palette.slice(0, count);
 
         // --- ENFORCE CONTRAST & VIBRANCY (Upgraded to OKLCH) ---
-        if (mode !== 'monochromatic' && mode !== 'shades') {
+        // Skip for specific modes that require strict relationships (mono, gradient, iridescent)
+        if (mode !== 'monochromatic' && mode !== 'shades' && !skipPostProcess) {
             finalPalette = enforceContrastAndVibrancy(finalPalette);
         }
 
         const noShuffleModes = ['monochromatic', 'analogous', 'warm-earth', 'hyper-warm'];
         
-        if (!noShuffleModes.includes(mode)) {
+        if (!skipShuffle && !noShuffleModes.includes(mode)) {
             for (let i = finalPalette.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [finalPalette[i], finalPalette[j]] = [finalPalette[j], finalPalette[i]];
             }
-        } else if (!noShuffleModes.includes(mode) && chance(0.5)) {
+        } else if (!skipShuffle && !noShuffleModes.includes(mode) && chance(0.5)) {
              for (let i = finalPalette.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [finalPalette[i], finalPalette[j]] = [finalPalette[j], finalPalette[i]];
             }
         }
-        return finalPalette;
+        return { colors: finalPalette, skipShuffle, skipPostProcess };
     };
 
     // Main Execution Loop with Retry Logic
@@ -691,9 +746,10 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
     const maxAttempts = shouldCheckSignature ? 2 : 1;
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        result = generateCandidate();
+        const candidate = generateCandidate();
+        result = candidate.colors;
         
-        if (shouldCheckSignature) {
+        if (shouldCheckSignature && !candidate.skipShuffle) { // Don't check signature for gradients/iridescent as they are unique by nature
             const sig = calculatePaletteSignature(result);
             if (attempt === 0 && recentSignatures.includes(sig)) {
                 // Detected repetition, retrying...
