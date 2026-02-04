@@ -438,7 +438,9 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
                 'anchor-focus', 'polychrome', 'divergent', 
                 'complex-rhythm', 'cinematic',
                 // ADVANCED COLOR FX (Probabilistic injection)
-                'smooth-gradient', 'iridescent-flow', 'neon-maximalist'
+                'smooth-gradient', 'iridescent-flow', 'neon-maximalist',
+                // NEW ARCHETYPES (Deep Contrast)
+                'obsidian-highlight', 'industrial-concrete'
             ];
             
             if (chance(0.05)) strategies.push('pastel-dream');
@@ -512,6 +514,57 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
                              if(hex) palette.push(createColorData(hex));
                         }
                         // Don't skip shuffle/post-process, let it feel organic but intense
+                        break;
+                    }
+
+                    case 'obsidian-highlight': {
+                        // Inspired by deep dark themes with neon pops (e.g. Cyberpunk/Matrix)
+                        // 3-4 Deep Darks + 1-2 Neons
+                        const darkBaseHue = randomInt(200, 280); // Cool darks (Blue/Purple) or just random
+                        const neonHue = chance(0.5) ? (darkBaseHue + 180) % 360 : randomInt(0, 360);
+                        
+                        // Add 1-2 Pure Blacks/Near Blacks
+                        safeAddColor(darkBaseHue, randomInt(5, 20), randomInt(1, 6)); 
+                        if (count > 3) safeAddColor(darkBaseHue + randomInt(-20, 20), randomInt(5, 15), randomInt(3, 8));
+
+                        // Add 1-2 Deep Chromatic Darks (Navy/Midnight)
+                        const deepCount = Math.max(1, count - 3); // Reserve spots for blacks and neons
+                        for(let i=0; i<deepCount; i++) {
+                            safeAddColor(darkBaseHue + randomInt(-30, 30), randomInt(30, 60), randomInt(10, 18));
+                        }
+                        
+                        // Fill remaining with Neon
+                        while(palette.length < count) {
+                            safeAddColor(neonHue + randomInt(-10, 10), randomInt(90, 100), randomInt(60, 90));
+                        }
+                        break;
+                    }
+
+                    case 'industrial-concrete': {
+                        // Inspired by brutalist/industrial design (Teal/Beige/Charcoal)
+                        // Structure: 1 Black Anchor + 1 Dark Grey + 1 Muted Mid + 1 Light Neutral
+                        
+                        // 1. Black Anchor
+                        safeAddColor(randomInt(0, 360), 5, randomInt(3, 10));
+                        
+                        // 2. Dark Grey/Brown (Warm or Cool)
+                        const isWarm = chance(0.5);
+                        const darkHue = isWarm ? randomInt(20, 50) : randomInt(200, 240);
+                        safeAddColor(darkHue, randomInt(5, 20), randomInt(20, 35));
+                        
+                        // 3. Muted Mid-tone (Teal, Slate, Olive)
+                        const midHue = (darkHue + randomInt(120, 240)) % 360; // Contrast hue
+                        safeAddColor(midHue, randomInt(10, 30), randomInt(40, 60));
+                        
+                        // 4. Light Neutral (Beige, Bone, Concrete)
+                        const lightHue = isWarm ? randomInt(30, 60) : randomInt(200, 220);
+                        safeAddColor(lightHue, randomInt(5, 25), randomInt(80, 92));
+                        
+                        // Fill rest with variation of mid or dark
+                        while(palette.length < count) {
+                             if (chance(0.5)) safeAddColor(darkHue + randomInt(-10, 10), randomInt(5, 20), randomInt(25, 40));
+                             else safeAddColor(midHue + randomInt(-10, 10), randomInt(10, 30), randomInt(45, 65));
+                        }
                         break;
                     }
 
