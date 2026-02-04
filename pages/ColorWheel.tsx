@@ -221,9 +221,6 @@ export const ColorWheel: React.FC = () => {
 
           {/* Hex Input Field */}
           <div className="mb-10 relative group mt-8">
-             <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-mono text-gray-500 px-2 uppercase tracking-widest pointer-events-none">
-               Input Hex
-             </div>
              <input 
                type="text" 
                value={manualHex}
