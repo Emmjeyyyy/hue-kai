@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { RotateCcw } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { ColorCard } from '../components/UI';
 import { hslToRgb, rgbToHex, createColorData, hexToRgb, rgbToHsl } from '../utils/colorUtils';
@@ -256,9 +257,16 @@ export const ColorWheel: React.FC = () => {
           </div>
 
           {/* Lightness Slider */}
-          <div className="w-full max-w-xs mt-8">
-            <div className="flex justify-between text-xs font-mono text-gray-400 mb-2">
+          <div className="w-full max-w-xs mt-8 relative">
+            <div className="flex justify-between text-xs font-mono text-gray-400 mb-2 items-center">
                <span>DARKNESS</span>
+               <button 
+                 onClick={() => setLightness(50)}
+                 className="text-[10px] text-gray-600 hover:text-chroma-cyan transition-colors flex items-center gap-1"
+                 title="Reset to 50%"
+               >
+                 <RotateCcw size={10} /> RESET
+               </button>
                <span>LIGHTNESS</span>
             </div>
             <input 
@@ -267,8 +275,42 @@ export const ColorWheel: React.FC = () => {
               max="90" 
               value={lightness} 
               onChange={(e) => setLightness(Number(e.target.value))}
-              className="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-chroma-cyan"
+              className="w-full h-3 rounded-full appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-white/20 transition-all border border-white/10"
+              style={{
+                background: `linear-gradient(to right, hsl(${hue}, ${saturation}%, 10%), hsl(${hue}, ${saturation}%, 50%), hsl(${hue}, ${saturation}%, 90%))`
+              }}
             />
+            <style>{`
+              input[type=range]::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                height: 20px;
+                width: 20px;
+                border-radius: 50%;
+                background: #ffffff;
+                border: 3px solid #1a1a2e;
+                cursor: pointer;
+                box-shadow: 0 0 10px rgba(0,0,0,0.5);
+                transition: transform 0.1s, border-color 0.2s;
+              }
+              input[type=range]::-webkit-slider-thumb:hover {
+                transform: scale(1.1);
+                border-color: #00ffff;
+              }
+              input[type=range]::-moz-range-thumb {
+                height: 20px;
+                width: 20px;
+                border-radius: 50%;
+                background: #ffffff;
+                border: 3px solid #1a1a2e;
+                cursor: pointer;
+                box-shadow: 0 0 10px rgba(0,0,0,0.5);
+                transition: transform 0.1s, border-color 0.2s;
+              }
+              input[type=range]::-moz-range-thumb:hover {
+                transform: scale(1.1);
+                border-color: #00ffff;
+              }
+            `}</style>
           </div>
 
           {/* Harmony Mode Selector */}
