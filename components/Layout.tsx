@@ -24,7 +24,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       <header className="relative z-50 border-b border-white/10 bg-black/80 backdrop-blur-sm shrink-0">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-chroma-yellow to-chroma-accent rounded-sm animate-pulse-fast"></div>
+            <div className="w-8 h-8 bg-gradient-to-br from-chroma-yellow to-chroma-accent rounded-sm"></div>
             <h1 className="text-2xl font-bold tracking-tighter italic">
               HUE<span className="text-chroma-accent">//</span>KAI
             </h1>
