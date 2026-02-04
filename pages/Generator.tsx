@@ -177,7 +177,7 @@ export const Generator: React.FC = () => {
                 <div className="relative" ref={filterRef}>
                     <CyberButton
                          onClick={() => setIsFilterOpen(!isFilterOpen)}
-                         className={`w-10 h-10 p-0 flex items-center justify-center rounded-full border ${isFilterOpen ? 'border-chroma-cyan text-chroma-cyan' : 'border-transparent text-gray-400'}`}
+                         className={`w-10 h-10 p-0 flex items-center justify-center rounded-full -translate-y-[3px] border ${isFilterOpen ? 'border-chroma-cyan text-chroma-cyan' : 'border-transparent text-gray-400'}`}
                          variant="dark"
                     >
                         <SlidersHorizontal size={18} />
