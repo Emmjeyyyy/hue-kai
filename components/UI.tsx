@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Copy, Lock, Unlock, Check } from 'lucide-react';
 import { ColorData } from '../types';
 
@@ -124,7 +124,7 @@ export const ColorCard: React.FC<{
   onLock?: () => void;
   fullHeight?: boolean;
 }> = ({ color, onLock, fullHeight = false }) => {
-  const [copied, setCopied] = React.useState(false);
+  const [copied, setCopied] = useState(false);
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
