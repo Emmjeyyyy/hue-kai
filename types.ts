@@ -33,4 +33,9 @@ export type PaletteMode =
   | 'modern-ui' 
   | 'retro-future'
   | 'warm-earth'
-  | 'hyper-warm';
+  | 'hyper-warm'
+  | 'obsidian-highlight'
+  | 'industrial-concrete'
+  | 'smooth-gradient'
+  | 'iridescent-flow'
+  | 'neon-maximalist';

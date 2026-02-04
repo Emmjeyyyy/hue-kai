@@ -99,17 +99,14 @@ export const generateRandomColor = (): string => {
 // --- INTELLIGENT SORTING ---
 
 export const sortColorsByVisualProgression = (colors: ColorData[]): ColorData[] => {
-    // Enhance: Convert to OKLCH for perceptual sorting
     const withVals = colors.map(c => {
          const oklch = toOklch(c.hex);
-         // Culori might return undefined for hue on achromatic colors
          return { 
            data: c, 
            oklch: oklch || { mode: 'oklch' as const, l: 0, c: 0, h: 0 } 
          };
     });
     
-    // Perceptual Achromatic Threshold (Chroma < 0.04 in OKLCH is visually grey)
     const chromatic: typeof withVals = [];
     const achromatic: typeof withVals = [];
     
@@ -123,36 +120,27 @@ export const sortColorsByVisualProgression = (colors: ColorData[]): ColorData[] 
         }
     }
     
-    // Sort Achromatic by Lightness (Dark to Light) using OKLCH Lightness
     achromatic.sort((a, b) => a.oklch.l - b.oklch.l);
     
-    // Sort Chromatic by Hue (Spectral)
     if (chromatic.length > 0) {
         chromatic.sort((a, b) => (a.oklch.h || 0) - (b.oklch.h || 0));
-        
-        // Find largest perceptual gap
         let maxGap = 0;
         let gapIndex = 0;
-        
         for (let i = 0; i < chromatic.length; i++) {
             const curr = chromatic[i].oklch.h || 0;
             const next = chromatic[(i + 1) % chromatic.length].oklch.h || 0;
-            
             let diff = next - curr;
             if (diff < 0) diff += 360;
-            
             if (diff > maxGap) {
                 maxGap = diff;
                 gapIndex = i;
             }
         }
-        
         const startIdx = (gapIndex + 1) % chromatic.length;
         const rotated = [
             ...chromatic.slice(startIdx),
             ...chromatic.slice(0, startIdx)
         ];
-        
         chromatic.splice(0, chromatic.length, ...rotated);
     }
     
@@ -161,8 +149,6 @@ export const sortColorsByVisualProgression = (colors: ColorData[]): ColorData[] 
 
 // --- SIGNATURE & ANTI-REPETITION LOGIC ---
 
-// Calculate a structural signature for the palette
-// NOTE: Preserving original HSL bucket logic as requested for identity/behavior
 const calculatePaletteSignature = (colors: ColorData[]): string => {
     const hsls = colors.map(c => {
         const rgb = hexToRgb(c.hex);
@@ -272,7 +258,6 @@ const getWeightedVibe = (): Vibe => {
   return { name: 'muted', sMin: 5, sMax: 30, lMin: 40, lMax: 70 };
 };
 
-// Check if two colors are perceptually too similar using Oklab Distance
 const areColorsTooSimilar = (h1: number, s1: number, l1: number, h2: number, s2: number, l2: number): boolean => {
     const c1 = { mode: 'hsl' as const, h: h1, s: s1/100, l: l1/100 };
     const c2 = { mode: 'hsl' as const, h: h2, s: s2/100, l: l2/100 };
@@ -282,7 +267,6 @@ const areColorsTooSimilar = (h1: number, s1: number, l1: number, h2: number, s2:
     return dist < 0.06;
 }
 
-// Ensure palette is not "washed out" or boring using OKLCH intelligence
 const enforceContrastAndVibrancy = (palette: ColorData[]): ColorData[] => {
     if (palette.length < 2) return palette;
 
@@ -311,7 +295,6 @@ const enforceContrastAndVibrancy = (palette: ColorData[]): ColorData[] => {
         oklchColors[idx].l = randomRange(0.2, 0.3);
         if (oklchColors[idx].c < 0.05) oklchColors[idx].c = 0.1;
         modified = true;
-        
         if (palette.length >= 4) {
              const idx2 = palette.length - 1;
              oklchColors[idx2].l = randomRange(0.5, 0.7);
@@ -346,7 +329,6 @@ const enforceContrastAndVibrancy = (palette: ColorData[]): ColorData[] => {
              return createColorData(hex);
         });
     }
-
     return palette;
 };
 
@@ -367,7 +349,7 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
         let skipShuffle = false;
         let skipPostProcess = false;
 
-        // 1. Determine Base Hue with Anti-Repetition
+        // 1. Determine Base Hue
         let baseH: number, baseS: number, baseL: number;
         const vibe = getWeightedVibe();
 
@@ -383,35 +365,26 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
                 baseH = randomInt(0, 360);
                 attempts++;
             } while (isHueRecentlyUsed(baseH) && attempts < 10);
-            
             registerBaseHue(baseH);
-
             baseS = randomInt(vibe.sMin, vibe.sMax);
             baseL = randomInt(vibe.lMin, vibe.lMax);
         }
 
-        // 2. Helper to Add Colors with Collision Detection
         const addColor = (h: number, s: number, l: number): boolean => {
             h = h % 360;
             if (h < 0) h += 360;
             s = clamp(s, 0, 100);
             l = clamp(l, 5, 98);
-
             for (const pc of paletteColors) {
-                if (areColorsTooSimilar(h, s, l, pc.h, pc.s, pc.l)) {
-                    return false; 
-                }
+                if (areColorsTooSimilar(h, s, l, pc.h, pc.s, pc.l)) return false; 
             }
-
             let rgb = hslToRgb(h, s, l);
             let hex = rgbToHex(rgb.r, rgb.g, rgb.b);
-
             if (globalHistory.has(hex)) {
                 l = clamp(l + (chance(0.5) ? 5 : -5), 5, 95);
                 rgb = hslToRgb(h, s, l);
                 hex = rgbToHex(rgb.r, rgb.g, rgb.b);
             }
-
             paletteColors.push({h, s, l});
             palette.push(createColorData(hex));
             registerColor(hex);
@@ -420,166 +393,107 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
 
         const safeAddColor = (h: number, s: number, l: number) => {
             if (!addColor(h, s, l)) {
-                if (!addColor(h, s, clamp(l + 20, 0, 100))) {
-                    addColor(h + 30, s, l);
-                }
+                if (!addColor(h, s, clamp(l + 20, 0, 100))) addColor(h + 30, s, l);
             }
         };
 
-        // --- MODE EXECUTION ---
-        
+        // --- STRATEGY SELECTION ---
         let strategyUsed = "";
+        
+        // Define advanced strategies pool
+        const strategies = [
+            'golden-ratio', 'analogous-walk', 'triadic-scatter', 
+            'neutral-pop', 'high-contrast-clash',
+            'monochromatic-texture', 'structural-duo', 'structural-trio', 
+            'anchor-focus', 'polychrome', 'divergent', 
+            'complex-rhythm', 'cinematic',
+            'smooth-gradient', 'iridescent-flow', 'neon-maximalist',
+            'obsidian-highlight', 'industrial-concrete'
+        ];
+        
+        if (chance(0.05)) strategies.push('pastel-dream');
 
-        if (mode === 'random') {
-            const strategies = [
-                'golden-ratio', 'analogous-walk', 'triadic-scatter', 
-                'neutral-pop', 'high-contrast-clash',
-                'monochromatic-texture', 'structural-duo', 'structural-trio', 
-                'anchor-focus', 'polychrome', 'divergent', 
-                'complex-rhythm', 'cinematic',
-                // ADVANCED COLOR FX (Probabilistic injection)
-                'smooth-gradient', 'iridescent-flow', 'neon-maximalist',
-                // NEW ARCHETYPES (Deep Contrast)
-                'obsidian-highlight', 'industrial-concrete'
-            ];
-            
-            if (chance(0.05)) strategies.push('pastel-dream');
+        // Logic:
+        // If 'mode' is one of the specific advanced strategies, use it directly.
+        // If 'mode' is 'random', pick one from the pool.
+        // Otherwise, fall through to named legacy modes (analogous, cyberpunk, etc).
 
-            const strategy = strategies[Math.floor(Math.random() * strategies.length)];
-            strategyUsed = strategy;
-            let currentH = baseH;
+        if (strategies.includes(mode)) {
+            strategyUsed = mode;
+        } else if (mode === 'random') {
+            strategyUsed = strategies[Math.floor(Math.random() * strategies.length)];
+        }
 
-            switch(strategy) {
-                    // --- NEW ADVANCED FX ---
+        let currentH = baseH;
+
+        if (strategyUsed) {
+             switch(strategyUsed) {
                     case 'smooth-gradient': {
-                        // Generate a perceptually uniform gradient
-                        // We pick start and end points in OKLCH to ensure vibrancy
                         const start = { mode: 'oklch' as const, l: randomRange(0.4, 0.9), c: randomRange(0.1, 0.3), h: randomInt(0, 360) };
-                        // Ensure end is distinct but related
                         const hueShift = chance(0.5) ? randomInt(60, 120) : randomInt(180, 240);
                         const end = { mode: 'oklch' as const, l: randomRange(0.2, 0.8), c: randomRange(0.1, 0.3), h: (start.h + hueShift) % 360 };
-                        
-                        const interpolator = interpolate([start, end], 'oklab'); // Oklab interpolation for smoothness
-                        const steps = count;
-                        // Use Culori samples to generate 'count' steps from 0 to 1
-                        const gradientColors = samples(steps).map(interpolator).map(formatHex);
-                        
-                        gradientColors.forEach(hex => {
-                            if(hex) palette.push(createColorData(hex));
-                        });
-                        
-                        skipShuffle = true; // Gradients must order strictly
-                        skipPostProcess = true; // Gradients are intentional
+                        const interpolator = interpolate([start, end], 'oklab');
+                        const gradientColors = samples(count).map(interpolator).map(formatHex);
+                        gradientColors.forEach(hex => { if(hex) palette.push(createColorData(hex)); });
+                        skipShuffle = true; skipPostProcess = true;
                         break;
                     }
-
                     case 'iridescent-flow': {
-                        // Simulates surface interference (pearl or oil slick)
-                        // Characteristic: High hue shift density, constant chroma/lightness
                         const type = chance(0.7) ? 'pearl' : 'oil';
                         const baseL = type === 'pearl' ? randomRange(0.85, 0.96) : randomRange(0.15, 0.25);
-                        const baseC = type === 'pearl' ? randomRange(0.02, 0.1) : randomRange(0.1, 0.2); // Oil has more chroma
+                        const baseC = type === 'pearl' ? randomRange(0.02, 0.1) : randomRange(0.1, 0.2);
                         const startHue = randomInt(0, 360);
-                        const hueStep = randomRange(10, 20); // Small steps
-                        
+                        const hueStep = randomRange(10, 20);
                         for(let i=0; i<count; i++) {
-                            const oklch = {
-                                mode: 'oklch' as const,
-                                l: baseL + randomRange(-0.02, 0.02),
-                                c: baseC,
-                                h: (startHue + (i * hueStep)) % 360
-                            };
+                            const oklch = { mode: 'oklch' as const, l: baseL + randomRange(-0.02, 0.02), c: baseC, h: (startHue + (i * hueStep)) % 360 };
                             const hex = formatHex(oklch);
                             if(hex) palette.push(createColorData(hex));
                         }
-                        
-                        skipShuffle = true;
-                        skipPostProcess = true; // Iridescence is naturally low-contrast/flat
+                        skipShuffle = true; skipPostProcess = true;
                         break;
                     }
-
                     case 'neon-maximalist': {
-                        // High Energy: Maximize Chroma in Oklch
-                        // Oklch chroma can go up to ~0.37, generally >0.2 is very vivid
                         for(let i=0; i<count; i++) {
-                             // Distribute hues for maximum contrast
                              const h = (baseH + (i * (360/count)) + randomInt(-20, 20)) % 360;
-                             const oklch = {
-                                 mode: 'oklch' as const,
-                                 l: randomRange(0.6, 0.85), // Light enough to glow
-                                 c: randomRange(0.2, 0.32), // Extremely vivid
-                                 h: h
-                             };
+                             const oklch = { mode: 'oklch' as const, l: randomRange(0.6, 0.85), c: randomRange(0.2, 0.32), h: h };
                              const hex = formatHex(oklch);
                              if(hex) palette.push(createColorData(hex));
                         }
-                        // Don't skip shuffle/post-process, let it feel organic but intense
                         break;
                     }
-
                     case 'obsidian-highlight': {
-                        // Inspired by deep dark themes with neon pops (e.g. Cyberpunk/Matrix)
-                        // 3-4 Deep Darks + 1-2 Neons
-                        const darkBaseHue = randomInt(200, 280); // Cool darks (Blue/Purple) or just random
+                        const darkBaseHue = randomInt(200, 280);
                         const neonHue = chance(0.5) ? (darkBaseHue + 180) % 360 : randomInt(0, 360);
-                        
-                        // Add 1-2 Pure Blacks/Near Blacks
                         safeAddColor(darkBaseHue, randomInt(5, 20), randomInt(1, 6)); 
                         if (count > 3) safeAddColor(darkBaseHue + randomInt(-20, 20), randomInt(5, 15), randomInt(3, 8));
-
-                        // Add 1-2 Deep Chromatic Darks (Navy/Midnight)
-                        const deepCount = Math.max(1, count - 3); // Reserve spots for blacks and neons
-                        for(let i=0; i<deepCount; i++) {
-                            safeAddColor(darkBaseHue + randomInt(-30, 30), randomInt(30, 60), randomInt(10, 18));
-                        }
-                        
-                        // Fill remaining with Neon
-                        while(palette.length < count) {
-                            safeAddColor(neonHue + randomInt(-10, 10), randomInt(90, 100), randomInt(60, 90));
-                        }
+                        const deepCount = Math.max(1, count - 3);
+                        for(let i=0; i<deepCount; i++) safeAddColor(darkBaseHue + randomInt(-30, 30), randomInt(30, 60), randomInt(10, 18));
+                        while(palette.length < count) safeAddColor(neonHue + randomInt(-10, 10), randomInt(90, 100), randomInt(60, 90));
                         break;
                     }
-
                     case 'industrial-concrete': {
-                        // Inspired by brutalist/industrial design (Teal/Beige/Charcoal)
-                        // Structure: 1 Black Anchor + 1 Dark Grey + 1 Muted Mid + 1 Light Neutral
-                        
-                        // 1. Black Anchor
                         safeAddColor(randomInt(0, 360), 5, randomInt(3, 10));
-                        
-                        // 2. Dark Grey/Brown (Warm or Cool)
                         const isWarm = chance(0.5);
                         const darkHue = isWarm ? randomInt(20, 50) : randomInt(200, 240);
                         safeAddColor(darkHue, randomInt(5, 20), randomInt(20, 35));
-                        
-                        // 3. Muted Mid-tone (Teal, Slate, Olive)
-                        const midHue = (darkHue + randomInt(120, 240)) % 360; // Contrast hue
+                        const midHue = (darkHue + randomInt(120, 240)) % 360;
                         safeAddColor(midHue, randomInt(10, 30), randomInt(40, 60));
-                        
-                        // 4. Light Neutral (Beige, Bone, Concrete)
                         const lightHue = isWarm ? randomInt(30, 60) : randomInt(200, 220);
                         safeAddColor(lightHue, randomInt(5, 25), randomInt(80, 92));
-                        
-                        // Fill rest with variation of mid or dark
                         while(palette.length < count) {
                              if (chance(0.5)) safeAddColor(darkHue + randomInt(-10, 10), randomInt(5, 20), randomInt(25, 40));
                              else safeAddColor(midHue + randomInt(-10, 10), randomInt(10, 30), randomInt(45, 65));
                         }
                         break;
                     }
-
-                    // --- EXISTING STRATEGIES ---
                     case 'polychrome': {
                         const slice = 360 / count;
                         const offset = randomInt(0, 360);
-                        for(let i=0; i<count; i++) {
-                            safeAddColor(offset + (i * slice) + randomInt(-20, 20), randomInt(50, 95), randomInt(30, 80));
-                        }
+                        for(let i=0; i<count; i++) safeAddColor(offset + (i * slice) + randomInt(-20, 20), randomInt(50, 95), randomInt(30, 80));
                         break;
                     }
                     case 'divergent': {
-                        const h1 = baseH;
-                        const h2 = (baseH + 180) % 360;
+                        const h1 = baseH; const h2 = (baseH + 180) % 360;
                         for(let i=0; i<count; i++) {
                             const target = i % 2 === 0 ? h1 : h2;
                             safeAddColor(target + randomInt(-40, 40), randomInt(40, 90), randomInt(20, 80));
@@ -588,9 +502,7 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
                     }
                     case 'complex-rhythm': {
                         let step = 137.5;
-                        for(let i=0; i<count; i++) {
-                            safeAddColor(baseH + (i * step), randomInt(vibe.sMin, Math.min(100, vibe.sMax + 20)), randomInt(vibe.lMin, vibe.lMax));
-                        }
+                        for(let i=0; i<count; i++) safeAddColor(baseH + (i * step), randomInt(vibe.sMin, Math.min(100, vibe.sMax + 20)), randomInt(vibe.lMin, vibe.lMax));
                         break;
                     }
                     case 'cinematic': {
@@ -609,8 +521,7 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
                         break;
                     }
                     case 'structural-duo': {
-                        const h1 = baseH;
-                        const h2 = (baseH + randomInt(80, 280)) % 360;
+                        const h1 = baseH; const h2 = (baseH + randomInt(80, 280)) % 360;
                         for(let i=0; i<count; i++) {
                             const targetH = (i < count / 2) ? h1 : h2;
                             safeAddColor(targetH + randomInt(-10, 10), randomInt(vibe.sMin, vibe.sMax), randomInt(10, 90));
@@ -618,13 +529,9 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
                         break;
                     }
                     case 'structural-trio': {
-                        const h1 = baseH;
-                        const h2 = (baseH + randomInt(90, 150)) % 360;
-                        const h3 = (h2 + randomInt(90, 150)) % 360;
+                        const h1 = baseH; const h2 = (baseH + randomInt(90, 150)) % 360; const h3 = (h2 + randomInt(90, 150)) % 360;
                         const hues = [h1, h2, h3];
-                        for(let i=0; i<count; i++) {
-                            safeAddColor(hues[i % 3] + randomInt(-10, 10), randomInt(40, 90), randomInt(30, 80));
-                        }
+                        for(let i=0; i<count; i++) safeAddColor(hues[i % 3] + randomInt(-10, 10), randomInt(40, 90), randomInt(30, 80));
                         break;
                     }
                     case 'anchor-focus': {
@@ -675,17 +582,12 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
                         break;
                     case 'monochromatic-texture':
                     default: 
-                        const startL = 20;
-                        const endL = 90;
-                        const stepL = (endL - startL) / count;
+                        const startL = 20; const endL = 90; const stepL = (endL - startL) / count;
                         for(let i=0; i<count; i++) safeAddColor(baseH + randomInt(-15, 15), randomInt(30, 80), startL + (i * stepL) + randomInt(-5, 5));
             }
         }
         else if (mode === 'warm-earth') {
-            const startH = (randomInt(350, 390)) % 360; 
-            const totalShift = randomInt(30, 60); 
-            const startL = randomInt(15, 25);
-            const endL = randomInt(65, 85);   
+            const startH = (randomInt(350, 390)) % 360; const totalShift = randomInt(30, 60); const startL = randomInt(15, 25); const endL = randomInt(65, 85);   
             for(let i=0; i<count; i++) {
                 const progress = i / (count - 1 || 1);
                 const currentH = (startH + (progress * totalShift)) % 360;
@@ -695,12 +597,9 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
             }
         }
         else if (mode === 'hyper-warm') {
-            const minH = 320;
-            const maxH = 410; 
+            const minH = 320; const maxH = 410; 
             for(let i=0; i<count; i++) {
-                let h = randomInt(minH, maxH) % 360;
-                const s = randomInt(80, 100);
-                let l = 50;
+                let h = randomInt(minH, maxH) % 360; const s = randomInt(80, 100); let l = 50;
                 if (h >= 40 && h <= 70) l = randomInt(60, 90);
                 else if (h >= 10 && h < 40) l = randomInt(50, 75);
                 else l = randomInt(45, 65);
@@ -790,11 +689,7 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
         return { colors: finalPalette, skipShuffle, skipPostProcess };
     };
 
-    // Main Execution Loop with Retry Logic
     let result: ColorData[] = [];
-    
-    // Allow 1 retry if signature matches history
-    // Only apply to random generation modes where we want variety
     const shouldCheckSignature = (mode === 'random' || mode === 'warm-earth' || mode === 'hyper-warm') && !baseColor;
     const maxAttempts = shouldCheckSignature ? 2 : 1;
 
@@ -802,10 +697,9 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
         const candidate = generateCandidate();
         result = candidate.colors;
         
-        if (shouldCheckSignature && !candidate.skipShuffle) { // Don't check signature for gradients/iridescent as they are unique by nature
+        if (shouldCheckSignature && !candidate.skipShuffle) { 
             const sig = calculatePaletteSignature(result);
             if (attempt === 0 && recentSignatures.includes(sig)) {
-                // Detected repetition, retrying...
                 continue;
             }
             registerSignature(sig);
