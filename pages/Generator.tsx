@@ -26,7 +26,7 @@ export const Generator: React.FC = () => {
             // 3. Select Mode
             const modes: PaletteMode[] = [
                 'random', 'random', 'random', // Higher weight for smart random
-                'compound', 'shades', 'modern-ui', 'cyberpunk', 'retro-future', 'warm-earth',
+                'compound', 'shades', 'modern-ui', 'cyberpunk', 'retro-future', 'warm-earth', 'hyper-warm',
                 'complementary', 'analogous', 'triadic', 'split-complementary'
             ];
             const selectedMode = modes[Math.floor(Math.random() * modes.length)];
