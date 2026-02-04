@@ -75,11 +75,11 @@ export const ColorWheel: React.FC = () => {
             break;
 
         case 'tetradic':
-            // Exact 4 colors: Rectangular (Double Complementary)
-            // Base, Base+60, Base+180, Base+240
-            newPalette.push(createFromHsl(hue + 60, saturation, lightness));
+            // Exact 4 colors: Square Scheme to match requested output
+            // Base, Base+90, Base+180, Base+270
+            newPalette.push(createFromHsl(hue + 90, saturation, lightness));
             newPalette.push(createFromHsl(hue + 180, saturation, lightness));
-            newPalette.push(createFromHsl(hue + 240, saturation, lightness));
+            newPalette.push(createFromHsl(hue + 270, saturation, lightness));
             break;
 
         default:
@@ -221,6 +221,9 @@ export const ColorWheel: React.FC = () => {
 
           {/* Hex Input Field */}
           <div className="mb-10 relative group mt-8">
+             <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-mono text-gray-500 px-2 uppercase tracking-widest pointer-events-none">
+               Input Hex
+             </div>
              <input 
                type="text" 
                value={manualHex}
