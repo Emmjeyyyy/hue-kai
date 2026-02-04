@@ -262,7 +262,12 @@ export const ColorWheel: React.FC = () => {
                <span>DARKNESS</span>
                <button 
                  onClick={() => setLightness(50)}
-                 className="text-[10px] text-gray-600 hover:text-chroma-cyan transition-colors flex items-center gap-1"
+                 disabled={lightness === 50}
+                 className={`text-[10px] flex items-center gap-1 transition-colors ${
+                   lightness === 50 
+                     ? 'text-gray-700 opacity-50 cursor-not-allowed' 
+                     : 'text-gray-600 hover:text-chroma-cyan cursor-pointer'
+                 }`}
                  title="Reset to 50%"
                >
                  <RotateCcw size={10} /> RESET
