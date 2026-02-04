@@ -95,8 +95,9 @@ const chance = (prob: number) => Math.random() < prob;
 const globalHistory = new Set<string>();
 const HISTORY_LIMIT = 60; 
 
-// Base Hue Rotation to prevent consecutive palettes of same color
-let lastGlobalHue = Math.random() * 360;
+// Track recent base hues to force diversity over time
+const recentBaseHues: number[] = [];
+const BASE_HUE_LIMIT = 5;
 
 const registerColor = (hex: string) => {
     globalHistory.add(hex);
@@ -106,7 +107,20 @@ const registerColor = (hex: string) => {
     }
 };
 
-const isRecentlyUsed = (hex: string) => globalHistory.has(hex);
+const registerBaseHue = (h: number) => {
+    recentBaseHues.push(h);
+    if (recentBaseHues.length > BASE_HUE_LIMIT) {
+        recentBaseHues.shift();
+    }
+}
+
+// Check if a hue is too close to recently used base hues
+const isHueRecentlyUsed = (h: number) => {
+    return recentBaseHues.some(recent => {
+        const diff = Math.min(Math.abs(h - recent), 360 - Math.abs(h - recent));
+        return diff < 30; // 30 degree exclusion zone
+    });
+}
 
 // Vibe Definitions
 interface Vibe {
@@ -117,21 +131,45 @@ interface Vibe {
 
 const getWeightedVibe = (): Vibe => {
   const r = Math.random();
-  // Adjusted probabilities for variety
-  if (r < 0.35) return { name: 'vivid', sMin: 65, sMax: 100, lMin: 45, lMax: 60 };
-  if (r < 0.55) return { name: 'bright', sMin: 50, sMax: 90, lMin: 75, lMax: 95 };
-  if (r < 0.70) return { name: 'pastel', sMin: 30, sMax: 70, lMin: 80, lMax: 96 };
-  if (r < 0.85) return { name: 'deep', sMin: 50, sMax: 90, lMin: 15, lMax: 35 };
-  if (r < 0.95) return { name: 'balanced', sMin: 30, sMax: 85, lMin: 25, lMax: 80 };
-  if (r < 0.99) return { name: 'neon', sMin: 95, sMax: 100, lMin: 50, lMax: 60 };
-  return { name: 'muted', sMin: 5, sMax: 25, lMin: 40, lMax: 60 }; // Rare muted
+  // Expanded logic for more diversity.
+  // 35% Vivid, 20% Bright, 15% Pastel, 10% Deep, 15% Dynamic (Full Range), 5% Muted
+  if (r < 0.35) return { name: 'vivid', sMin: 70, sMax: 100, lMin: 40, lMax: 65 };
+  if (r < 0.55) return { name: 'bright', sMin: 60, sMax: 90, lMin: 80, lMax: 95 };
+  if (r < 0.70) return { name: 'pastel', sMin: 30, sMax: 60, lMin: 85, lMax: 96 };
+  if (r < 0.80) return { name: 'deep', sMin: 40, sMax: 80, lMin: 15, lMax: 35 };
+  if (r < 0.95) return { name: 'dynamic', sMin: 20, sMax: 100, lMin: 20, lMax: 90 };
+  return { name: 'muted', sMin: 5, sMax: 30, lMin: 40, lMax: 70 };
 };
+
+// Check if two colors are perceptually too similar
+const areColorsTooSimilar = (h1: number, s1: number, l1: number, h2: number, s2: number, l2: number): boolean => {
+    // Hue difference in degrees (shortest path)
+    const hDiff = Math.min(Math.abs(h1 - h2), 360 - Math.abs(h1 - h2));
+    const sDiff = Math.abs(s1 - s2);
+    const lDiff = Math.abs(l1 - l2);
+
+    // If hues are effectively identical
+    if (hDiff < 10) {
+        // Must have significant Lightness or Saturation contrast
+        // If Saturation is very low (greys), Hue matters less, so we strictly check L
+        if (s1 < 10 && s2 < 10) return lDiff < 15;
+        
+        return lDiff < 20 && sDiff < 20;
+    }
+    
+    // If hues are somewhat close
+    if (hDiff < 30) {
+        return lDiff < 15 && sDiff < 15;
+    }
+
+    return false;
+}
 
 // --- GENERATION ENGINE ---
 
 export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?: string): ColorData[] => {
   const palette: ColorData[] = [];
-  const usedHexes = new Set<string>();
+  const paletteColors: {h: number, s: number, l: number}[] = [];
 
   // 1. Determine Base Hue with Anti-Repetition
   let baseH: number, baseS: number, baseL: number;
@@ -144,73 +182,79 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
     baseS = hsl.s; 
     baseL = hsl.l;
   } else {
-    // Jump at least 60 degrees from last generation's base to ensure freshness
-    const jump = randomInt(60, 240);
-    baseH = (lastGlobalHue + jump) % 360;
-    lastGlobalHue = baseH;
+    // Try to find a fresh hue
+    let attempts = 0;
+    do {
+        baseH = randomInt(0, 360);
+        attempts++;
+    } while (isHueRecentlyUsed(baseH) && attempts < 10);
+    
+    registerBaseHue(baseH);
 
     baseS = randomInt(vibe.sMin, vibe.sMax);
     baseL = randomInt(vibe.lMin, vibe.lMax);
   }
 
-  // 2. Helper to Add Colors
-  const addColor = (h: number, s: number, l: number) => {
+  // 2. Helper to Add Colors with Collision Detection
+  const addColor = (h: number, s: number, l: number): boolean => {
+    // Normalize inputs
     h = h % 360;
     if (h < 0) h += 360;
     s = clamp(s, 0, 100);
-    l = clamp(l, 0, 100);
+    l = clamp(l, 5, 98); // Prevent pure black/white usually
 
+    // Check collision against currently generated palette
+    // This ensures distinct colors within the SAME palette
+    for (const pc of paletteColors) {
+        if (areColorsTooSimilar(h, s, l, pc.h, pc.s, pc.l)) {
+            return false; // Collision detected
+        }
+    }
+
+    // Convert
     let rgb = hslToRgb(h, s, l);
     let hex = rgbToHex(rgb.r, rgb.g, rgb.b);
 
-    // Conflict Resolution & Anti-Repetition
-    let attempts = 0;
-    // We try to find a color that hasn't been used in this palette AND hasn't been generated recently
-    while ((usedHexes.has(hex) || isRecentlyUsed(hex)) && attempts < 15) {
-        h = (h + randomInt(10, 40)) % 360; // Shift hue
-        l = clamp(l + randomInt(-10, 10), 5, 95); // Shift light
-        
+    // Check global history (optional, less strict here to allow re-use if context changes)
+    if (globalHistory.has(hex)) {
+        // Tweak slightly to make it unique
+        l = clamp(l + (chance(0.5) ? 5 : -5), 5, 95);
         rgb = hslToRgb(h, s, l);
         hex = rgbToHex(rgb.r, rgb.g, rgb.b);
-        attempts++;
     }
-    
-    // Hard fallback if we're stuck in a loop
-    if (usedHexes.has(hex)) hex = generateRandomColor();
 
-    usedHexes.add(hex);
-    registerColor(hex);
+    paletteColors.push({h, s, l});
     palette.push(createColorData(hex));
+    registerColor(hex);
+    return true;
+  };
+
+  // Safe Add: Tries to add a color, if it fails due to similarity, tries to shift it
+  const safeAddColor = (h: number, s: number, l: number) => {
+      if (!addColor(h, s, l)) {
+          // Attempt 1: Shift Lightness
+          if (!addColor(h, s, clamp(l + 20, 0, 100))) {
+              // Attempt 2: Shift Hue
+              addColor(h + 30, s, l);
+          }
+      }
   };
 
   // --- SPECIALIZED RECIPES ---
 
-  // A. Neutral Contrast Scheme
-  // REFACTORED: Removed hardcoded Blue/Orange bias. Now respects 'baseH' for base color
-  // and dynamically calculates accents to ensure variety (e.g. Green Base + Purple Accent).
   const generateNeutralContrastScheme = () => {
-       const rootH = baseH; // Use the rotated global hue
-       const accentH = (rootH + randomInt(150, 210)) % 360; // Complementary/Split
+       const rootH = baseH;
+       const accentH = (rootH + randomInt(150, 210)) % 360;
        
-       // 1. Dark Base (Tinted with root Hue)
-       addColor(rootH + randomInt(-15, 15), randomInt(5, 20), randomInt(4, 10));
+       safeAddColor(rootH, randomInt(5, 15), randomInt(10, 20)); // Dark Neutral
+       safeAddColor(accentH, randomInt(70, 95), randomInt(50, 65)); // Vibrant Accent
+       safeAddColor(rootH, randomInt(5, 10), randomInt(90, 98)); // Light Neutral
+       safeAddColor((rootH + 30) % 360, randomInt(5, 20), randomInt(40, 60)); // Mid-tone
        
-       // 2. Warm/Contrast Saturated Accent
-       addColor(accentH, randomInt(85, 100), randomInt(50, 65));
-       
-       // 3. Light Accent (Could be analogous to root or accent)
-       const lightAccentH = chance(0.5) ? (rootH + 30) % 360 : (accentH - 30) % 360;
-       addColor(lightAccentH, randomInt(20, 50), randomInt(80, 95));
-       
-       // 4. Soft Neutral (Off-white, tinted with root)
-       addColor(rootH, randomInt(2, 10), randomInt(90, 98));
-       
-       // 5. Mid Tone / Bridge (Desaturated root or neighbor)
-       addColor(rootH + randomInt(-20, 20), randomInt(5, 15), randomInt(30, 50));
-       
-       // Fill remainder
+       // Fill rest with variations
        while(palette.length < count) {
-           addColor(rootH + randomInt(0, 360), randomInt(50, 80), randomInt(40, 60));
+           const h = chance(0.5) ? rootH : accentH;
+           safeAddColor(h + randomInt(-20, 20), randomInt(20, 60), randomInt(30, 80));
        }
   };
 
@@ -227,263 +271,260 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
           'pastel-dream', 
           'high-contrast-clash',
           'monochromatic-texture',
-          'dark-neon-glow',
           'structural-duo', 
           'structural-trio', 
-          'anchor-focus' 
+          'anchor-focus',
+          // NEW STRATEGIES
+          'polychrome',
+          'divergent',
+          'complex-rhythm',
+          'cinematic'
       ];
       
-      // Reduced chance for Neutral Contrast to prevent domination, 
-      // but the function itself is now varied so it's less risky.
-      if (chance(0.08)) {
-          generateNeutralContrastScheme();
-          strategyUsed = "neutral-contrast";
-      } else {
-          const strategy = strategies[Math.floor(Math.random() * strategies.length)];
-          strategyUsed = strategy;
-          
-          let currentH = baseH;
+      const strategy = strategies[Math.floor(Math.random() * strategies.length)];
+      strategyUsed = strategy;
+      
+      let currentH = baseH;
 
-          switch(strategy) {
-              case 'structural-duo': {
-                  // Limited Hue Structure: Exactly 2 distinct hues
-                  const h1 = baseH;
-                  // Ensure h2 is distinct enough
-                  const h2 = (baseH + randomInt(60, 180)) % 360;
-                  
-                  for(let i=0; i<count; i++) {
-                      // Alternate or random selection between the two hues
-                      const useFirst = chance(0.5);
-                      const targetH = useFirst ? h1 : h2;
-                      
-                      // Vary S and L significantly
-                      addColor(
-                          targetH + randomInt(-5, 5),
-                          randomInt(vibe.sMin, vibe.sMax), 
-                          randomInt(10, 90) // Full lightness range for contrast
-                      );
-                  }
-                  break;
-              }
+      switch(strategy) {
+            case 'polychrome': {
+                // Completely distinct hues for every color
+                // Divide circle by count, add random jitter
+                const slice = 360 / count;
+                // Random start offset
+                const offset = randomInt(0, 360);
+                for(let i=0; i<count; i++) {
+                    const h = offset + (i * slice) + randomInt(-20, 20);
+                    const s = randomInt(50, 95);
+                    const l = randomInt(30, 80);
+                    safeAddColor(h, s, l);
+                }
+                break;
+            }
 
-              case 'structural-trio': {
-                  // Limited Hue Structure: Exactly 3 distinct hues
-                  const h1 = baseH;
-                  const h2 = (baseH + randomInt(60, 120)) % 360;
-                  const h3 = (h2 + randomInt(60, 120)) % 360;
-                  const hues = [h1, h2, h3];
+            case 'divergent': {
+                // Two clusters on opposite sides
+                const h1 = baseH;
+                const h2 = (baseH + 180) % 360;
+                
+                for(let i=0; i<count; i++) {
+                    const target = i % 2 === 0 ? h1 : h2;
+                    // Wide spread around targets
+                    safeAddColor(
+                        target + randomInt(-40, 40),
+                        randomInt(40, 90),
+                        randomInt(20, 80)
+                    );
+                }
+                break;
+            }
 
-                  for(let i=0; i<count; i++) {
-                      const targetH = hues[i % 3];
-                      addColor(
-                          targetH + randomInt(-5, 5),
-                          randomInt(vibe.sMin, vibe.sMax),
-                          randomInt(20, 85)
-                      );
-                  }
-                  break;
-              }
+            case 'complex-rhythm': {
+                // Fibonacci-like jumps or prime steps
+                let step = 137.5; // Golden angle
+                for(let i=0; i<count; i++) {
+                    safeAddColor(
+                        baseH + (i * step),
+                        randomInt(vibe.sMin, Math.min(100, vibe.sMax + 20)),
+                        randomInt(vibe.lMin, vibe.lMax)
+                    );
+                }
+                break;
+            }
 
-              case 'anchor-focus': {
-                  // High Contrast: White or Black anchor + Vivid Accents
-                  const isDarkAnchor = chance(0.5);
-                  // 1 or 2 anchors
-                  const numAnchors = randomInt(1, Math.min(2, count - 1));
+            case 'cinematic': {
+                // Orange/Teal or Purple/Yellow heavy
+                const pairType = Math.random();
+                let warmH = 0, coolH = 0;
+                if (pairType < 0.33) { warmH = 25; coolH = 195; } // Orange/Teal
+                else if (pairType < 0.66) { warmH = 340; coolH = 160; } // Pink/Green
+                else { warmH = 50; coolH = 240; } // Yellow/Blue
 
-                  for(let i=0; i<count; i++) {
-                      if (i < numAnchors) {
-                          if (isDarkAnchor) {
-                              // Deep Black/Charcoal
-                              addColor(baseH, randomInt(0, 10), randomInt(0, 8));
-                          } else {
-                              // Bright White/Off-White
-                              addColor(baseH, randomInt(0, 10), randomInt(92, 100));
-                          }
-                      } else {
-                          // Vivid Accents
-                          // Shift hue for diversity
-                          const accentH = (baseH + (i * 45) + 60) % 360;
-                          addColor(
-                              accentH, 
-                              randomInt(80, 100), // High Sat
-                              randomInt(40, 60)   // Mid Lightness
-                          );
-                      }
-                  }
-                  break;
-              }
+                // Shift slightly
+                const shift = randomInt(-20, 20);
+                warmH += shift; coolH += shift;
 
-              case 'golden-ratio': // Perfect mathematical distribution
-                  for(let i=0; i<count; i++) {
-                      addColor(
-                          (baseH + (i * 0.618033988749895 * 360)) % 360, 
-                          randomInt(vibe.sMin, vibe.sMax), 
-                          randomInt(vibe.lMin, vibe.lMax)
-                      );
-                  }
-                  break;
+                for(let i=0; i<count; i++) {
+                    const isWarm = chance(0.4); // Bias towards cool slightly
+                    const h = isWarm ? warmH : coolH;
+                    safeAddColor(
+                        h + randomInt(-15, 15),
+                        randomInt(50, 90),
+                        isWarm ? randomInt(50, 70) : randomInt(20, 50) // Warm colors often brighter, cool darker
+                    );
+                }
+                break;
+            }
 
-              case 'analogous-walk': // Smooth gradient walk
-                  const step = randomInt(20, 45) * (chance(0.5) ? 1 : -1);
-                  for(let i=0; i<count; i++) {
-                      addColor(
-                          currentH, 
-                          clamp(baseS + randomInt(-10, 10), 30, 100), 
-                          clamp(baseL + randomInt(-15, 15), 20, 90)
-                      );
-                      currentH += step;
-                  }
-                  break;
+            case 'structural-duo': {
+                const h1 = baseH;
+                const h2 = (baseH + randomInt(80, 280)) % 360; // Ensure distance
+                
+                for(let i=0; i<count; i++) {
+                    const useFirst = i < count / 2; // Split evenly-ish
+                    const targetH = useFirst ? h1 : h2;
+                    safeAddColor(
+                        targetH + randomInt(-10, 10),
+                        randomInt(vibe.sMin, vibe.sMax), 
+                        randomInt(10, 90)
+                    );
+                }
+                break;
+            }
 
-              case 'triadic-scatter': // 3 main points with jitter
-                  for(let i=0; i<count; i++) {
-                      const offset = (Math.floor(i % 3) * 120) + randomInt(-20, 20);
-                      addColor(baseH + offset, randomInt(60, 95), randomInt(30, 80));
-                  }
-                  break;
+            case 'structural-trio': {
+                const h1 = baseH;
+                const h2 = (baseH + randomInt(90, 150)) % 360;
+                const h3 = (h2 + randomInt(90, 150)) % 360;
+                const hues = [h1, h2, h3];
 
-              case 'neutral-pop': // Mostly greys with 1-2 pops
-                  const popIndices = [randomInt(0, count-1), randomInt(0, count-1)];
-                  for(let i=0; i<count; i++) {
-                      if (popIndices.includes(i)) {
-                          // Pop color: distinct from base
-                          addColor((baseH + 180 + randomInt(-30, 30)) % 360, randomInt(80, 100), randomInt(50, 70));
-                      } else {
-                          // Neutrals: Tinted with Base Hue
-                          addColor(baseH + randomInt(-10, 10), randomInt(0, 15), randomInt(20, 90));
-                      }
-                  }
-                  break;
-                  
-              case 'pastel-dream':
-                  // REFACTORED: Now uses baseH offsets instead of pure random to ensure rotation matters
-                  for(let i=0; i<count; i++) {
-                      addColor(
-                          (baseH + (i * 70) + randomInt(-20, 20)) % 360,
-                          randomInt(30, 70), // Mid sat
-                          randomInt(85, 96)  // High light
-                      );
-                  }
-                  break;
-                  
-              case 'high-contrast-clash':
-                  for(let i=0; i<count; i++) {
-                      // Flip between very dark and very light
-                      const l = chance(0.5) ? randomInt(10, 20) : randomInt(85, 95);
-                      // Use complementary jumps
-                      const h = (baseH + (i * 180)) % 360; 
-                      addColor(h, randomInt(70, 100), l);
-                  }
-                  break;
-              
-              case 'dark-neon-glow':
-                  // New strategy: Very dark background + Neon accents of adjacent hues
-                  addColor(baseH, randomInt(10, 30), randomInt(5, 10)); // Base Dark
-                  for(let i=1; i<count; i++) {
-                      addColor((baseH + randomInt(-60, 60)) % 360, 100, randomInt(50, 70));
-                  }
-                  break;
+                for(let i=0; i<count; i++) {
+                    const targetH = hues[i % 3];
+                    safeAddColor(targetH + randomInt(-10, 10), randomInt(40, 90), randomInt(30, 80));
+                }
+                break;
+            }
 
-              default: // Monochromatic Texture
-                  for(let i=0; i<count; i++) {
-                      addColor(
-                          baseH + randomInt(-10, 10),
-                          randomInt(20, 90),
-                          randomInt(10, 90) // Full lightness range
-                      );
-                  }
-          }
+            case 'anchor-focus': {
+                // High Contrast: White or Black anchor + Vivid Accents
+                const isDarkAnchor = chance(0.5);
+                const numAnchors = randomInt(1, 2);
+
+                for(let i=0; i<count; i++) {
+                    if (i < numAnchors) {
+                        if (isDarkAnchor) safeAddColor(baseH, 5, randomInt(5, 12));
+                        else safeAddColor(baseH, 5, randomInt(90, 98));
+                    } else {
+                        // Vivid Accents
+                        const accentH = (baseH + (i * 50) + 60) % 360;
+                        safeAddColor(accentH, randomInt(70, 100), randomInt(45, 65));
+                    }
+                }
+                break;
+            }
+
+            case 'golden-ratio': 
+                for(let i=0; i<count; i++) {
+                    safeAddColor(
+                        (baseH + (i * 0.618033988749895 * 360)) % 360, 
+                        randomInt(vibe.sMin, vibe.sMax), 
+                        randomInt(vibe.lMin, vibe.lMax)
+                    );
+                }
+                break;
+
+            case 'analogous-walk': 
+                const step = randomInt(30, 50) * (chance(0.5) ? 1 : -1);
+                for(let i=0; i<count; i++) {
+                    safeAddColor(currentH, clamp(baseS + randomInt(-10, 10), 30, 90), clamp(baseL + randomInt(-15, 15), 30, 80));
+                    currentH += step;
+                }
+                break;
+
+            case 'triadic-scatter': 
+                for(let i=0; i<count; i++) {
+                    const offset = (Math.floor(i % 3) * 120) + randomInt(-30, 30);
+                    safeAddColor(baseH + offset, randomInt(60, 95), randomInt(30, 80));
+                }
+                break;
+
+            case 'neutral-pop': 
+                const popIndex = randomInt(0, count-1);
+                for(let i=0; i<count; i++) {
+                    if (i === popIndex) {
+                        safeAddColor((baseH + 180) % 360, randomInt(80, 100), 60);
+                    } else {
+                        safeAddColor(baseH + randomInt(-20, 20), randomInt(0, 20), randomInt(20, 90));
+                    }
+                }
+                break;
+                
+            case 'pastel-dream':
+                for(let i=0; i<count; i++) {
+                    safeAddColor(
+                        (baseH + (i * 70) + randomInt(-20, 20)) % 360,
+                        randomInt(40, 70), 
+                        randomInt(80, 94)
+                    );
+                }
+                break;
+                
+            case 'high-contrast-clash':
+                for(let i=0; i<count; i++) {
+                    const l = chance(0.5) ? randomInt(10, 25) : randomInt(80, 95);
+                    const h = (baseH + (i * 140)) % 360; 
+                    safeAddColor(h, randomInt(60, 90), l);
+                }
+                break;
+            
+            case 'monochromatic-texture':
+            default: 
+                const startL = 20;
+                const endL = 90;
+                const stepL = (endL - startL) / count;
+                for(let i=0; i<count; i++) {
+                    safeAddColor(
+                        baseH + randomInt(-15, 15),
+                        randomInt(30, 80),
+                        startL + (i * stepL) + randomInt(-5, 5)
+                    );
+                }
       }
   }
 
   else if (mode === 'cyberpunk') {
-      // V2: Randomized sub-palettes
       const subTheme = Math.random();
-      
-      if (subTheme < 0.33) { // Classic Neon
-          // Use global baseH to determine the 'Dark Cool Base' instead of hardcoded blue
-          addColor(baseH, randomInt(20, 40), randomInt(5, 12)); 
+      if (subTheme < 0.33) { 
+          safeAddColor(baseH, randomInt(20, 40), randomInt(5, 12)); 
           for(let i=1; i<count; i++) {
-              // High Sat neon accents, potentially complementary
               const h = (baseH + 120 + (i * 50)) % 360;
-              addColor(h, 100, 60); 
+              safeAddColor(h, 100, 60); 
           }
-      } else if (subTheme < 0.66) { // Matrix/Hacker style (Monochrome Green/Digital)
-           // Use baseH as the 'terminal color'
-           addColor(0, 0, 5); // Black
+      } else if (subTheme < 0.66) { 
+           safeAddColor(0, 0, 5); 
            for(let i=1; i<count; i++) {
-               const h = baseH + randomInt(-20, 20); // Tighter grouping
-               addColor(h, randomInt(80, 100), randomInt(30, 80));
+               const h = baseH + randomInt(-30, 30); 
+               safeAddColor(h, randomInt(80, 100), randomInt(30, 80));
            }
-      } else { // Synthwave Sunset
-           // Start from baseH, gradient to complementary
+      } else { 
            const start = baseH;
-           const end = (baseH + 180) % 360;
-           // We need to handle wrapping for gradient calc, simpler to just step
            for(let i=0; i<count; i++) {
-               const h = (start + (i * (180/count))) % 360;
-               addColor(h, randomInt(80, 100), randomInt(40, 70));
+               const h = (start + (i * 40)) % 360;
+               safeAddColor(h, randomInt(80, 100), randomInt(40, 70));
            }
       }
   }
 
   else if (mode === 'modern-ui') {
-      // V2: Randomized Brand Color
-      // 30% Dark Mode, 30% Light Mode, 30% Colorful, 10% Neutral Contrast
-      const sub = Math.random();
-      const brandH = (baseH + randomInt(0, 60)) % 360; // Use baseH as anchor but vary
-
-      if (sub < 0.3) { // Dark
-          // REFACTORED: Tint background with brand color instead of hardcoded Slate
-          addColor(brandH, 20, 10); 
-          addColor(brandH, 15, 18);
-          // Accents
-          for(let i=2; i<count; i++) addColor(brandH, randomInt(70, 90), randomInt(60, 75));
-      } else if (sub < 0.6) { // Light
-          // Tinted whites
-          addColor(brandH, 5, 98); 
-          addColor(brandH, 8, 92); // Surface
-          addColor(brandH, 20, 20); // Text
-          for(let i=3; i<count; i++) addColor((brandH + 180) % 360, randomInt(80, 100), randomInt(50, 60));
-      } else if (sub < 0.9) { // Brand Heavy
-           for(let i=0; i<count; i++) {
-               addColor(brandH + (i * 20), randomInt(70, 90), randomInt(45, 65));
-           }
-      } else {
-           generateNeutralContrastScheme();
+      const brandH = (baseH + randomInt(0, 60)) % 360;
+      // 1. Primary
+      safeAddColor(brandH, randomInt(70, 90), randomInt(45, 60));
+      // 2. Surface/Bg
+      safeAddColor(brandH, 5, 96);
+      // 3. Text/Dark
+      safeAddColor(brandH, 10, 15);
+      // 4. Secondary/Accent
+      safeAddColor((brandH + 180) % 360, randomInt(60, 80), randomInt(50, 70));
+      // 5. Muted/Border
+      for(let i=4; i<count; i++) {
+          safeAddColor(brandH, 5, randomInt(80, 90));
       }
   }
 
   else if (mode === 'retro-future') {
-      // 90s Memphis or Y2K Chrome
-      if (chance(0.5)) { // Memphis Pattern
-          const primaries = [0, 50, 120, 180, 280, 320]; // Red, Yellow, Green, Cyan, Purple, Pink
-          // Shift primaries by baseH to create variety in "Primary" definitions
-          const shiftedPrimaries = primaries.map(p => (p + baseH) % 360);
-          
-          for(let i=0; i<count; i++) {
-              if (chance(0.15)) addColor(0,0,10); // Black squiggle
-              else if (chance(0.15)) addColor(0,0,95); // White background
-              else {
-                  const h = shiftedPrimaries[randomInt(0, shiftedPrimaries.length-1)] + randomInt(-10,10);
-                  addColor(h, randomInt(70, 90), randomInt(50, 70));
-              }
-          }
-      } else { // Y2K Chrome (Silvers + Iridescent)
-          for(let i=0; i<count; i++) {
-              if (chance(0.6)) { // Silver/Grey - Tinted with BaseH
-                  addColor(baseH, randomInt(5, 15), randomInt(70, 95));
-              } else { // Holographic Accent
-                  // Random hue vs BaseH
-                  addColor((baseH + randomInt(0, 360)) % 360, randomInt(50, 80), randomInt(70, 90));
-              }
+      // Y2K Chrome & Neon
+      for(let i=0; i<count; i++) {
+          if (chance(0.4)) { // Silver/Chrome
+              safeAddColor(baseH, randomInt(0, 5), randomInt(75, 95));
+          } else { // Acid brights
+              const h = (baseH + i * 90) % 360;
+              safeAddColor(h, randomInt(80, 100), randomInt(50, 70));
           }
       }
   }
   
   else if (mode === 'compound') {
-      // Mix of complementary and analogous
-      // Hues: Base, Base+180 (Comp), Base+30 (Analogous), Base+210 (Comp of Analogous)
+      // Comp + Analogous
       const hues = [
           baseH, 
           (baseH + 180) % 360, 
@@ -492,116 +533,77 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
           (baseH + 150) % 360
       ];
       for(let i=0; i<count; i++) {
-          addColor(hues[i % hues.length] + randomInt(-10, 10), randomInt(vibe.sMin, vibe.sMax), randomInt(vibe.lMin, vibe.lMax));
+          safeAddColor(hues[i % hues.length] + randomInt(-10, 10), randomInt(vibe.sMin, vibe.sMax), randomInt(vibe.lMin, vibe.lMax));
       }
   }
   
   else if (mode === 'shades') {
-      // Locked Hue, Varied Lightness/Saturation
       for(let i=0; i<count; i++) {
-          addColor(
+          safeAddColor(
               baseH + randomInt(-5, 5), 
-              randomInt(20, 100), 
-              randomInt(10, 95) // Force full range for better palette
+              randomInt(10, 90), 
+              randomInt(10, 90) 
           );
       }
   }
 
   else {
       // --- STANDARD MODES ---
-      // (Monochromatic, Analogous, Triadic, Tetradic, Split-Comp, Complementary)
-      
       const hues: number[] = [];
       
       if (mode === 'monochromatic') {
-           for(let i=0; i<count; i++) hues.push(baseH + randomInt(-5, 5));
+           for(let i=0; i<count; i++) hues.push(baseH + randomInt(-10, 10));
       } else if (mode === 'analogous') {
-           const spread = randomInt(25, 50);
+           const spread = randomInt(30, 60);
            const start = baseH - ((count-1)*spread/2);
            for(let i=0; i<count; i++) hues.push(start + (i*spread));
       } else if (mode === 'triadic') {
-           for(let i=0; i<count; i++) hues.push(baseH + (i*120) + randomInt(-10, 10));
+           for(let i=0; i<count; i++) hues.push(baseH + (i*120) + randomInt(-15, 15));
       } else if (mode === 'tetradic') {
            const h2 = baseH + 180;
-           const h3 = baseH + 60;
-           const h4 = baseH + 240;
+           const h3 = baseH + 90; // True square is 90
+           const h4 = baseH + 270;
            const bases = [baseH, h2, h3, h4];
-           for(let i=0; i<count; i++) hues.push(bases[i%4] + randomInt(-10, 10));
+           for(let i=0; i<count; i++) hues.push(bases[i%4] + randomInt(-15, 15));
       } else if (mode === 'split-complementary') {
-           const spread = randomInt(20, 40);
+           const spread = randomInt(30, 50);
            const bases = [baseH, baseH+180-spread, baseH+180+spread];
-           for(let i=0; i<count; i++) hues.push(bases[i%3] + randomInt(-5, 5));
+           for(let i=0; i<count; i++) hues.push(bases[i%3] + randomInt(-10, 10));
       } else { // Complementary
-           for(let i=0; i<count; i++) hues.push(baseH + ((i%2)*180) + randomInt(-5, 5));
+           for(let i=0; i<count; i++) hues.push(baseH + ((i%2)*180) + randomInt(-10, 10));
       }
 
-      // Special Lightness spread for Monochromatic
       if (mode === 'monochromatic') {
-          const startL = randomInt(10, 30);
-          const endL = randomInt(80, 95);
+          const startL = 15;
+          const endL = 95;
           const step = (endL - startL) / (count - 1 || 1);
           for(let i=0; i<count; i++) {
-              addColor(hues[i], clamp(baseS + randomInt(-20, 20), 0, 100), startL + (i*step));
+              safeAddColor(hues[i], clamp(baseS + randomInt(-10, 10), 0, 90), startL + (i*step));
           }
       } else {
           for (let i = 0; i < count; i++) {
-              addColor(hues[i], randomInt(vibe.sMin, vibe.sMax), randomInt(vibe.lMin, vibe.lMax));
+              safeAddColor(hues[i], randomInt(vibe.sMin, vibe.sMax), randomInt(vibe.lMin, vibe.lMax));
           }
       }
   }
 
-  // 3. Post-Generation Safety Check (Anti-Washed-Out)
-  if (mode === 'random' && strategyUsed !== 'pastel-dream' && palette.length > 0) {
-      const getL = (c: ColorData) => {
-          const m = c.hsl.match(/(\d+)%\s*$/);
-          return m ? parseInt(m[1]) : 50;
-      };
-      const getS = (c: ColorData) => {
-          const m = c.hsl.match(/(\d+)%,\s*\d+%/);
-          return m ? parseInt(m[1]) : 50;
-      };
-
-      // Check if palette lacks visual interest
-      // Condition: No color is (Dark < 40) AND No color is (Vivid S > 70 & L < 85) AND No color is (Bright White > 92)
-      const hasAnchor = palette.some(c => {
-          const l = getL(c);
-          const s = getS(c);
-          return l < 40 || (s > 70 && l < 85) || l > 92;
-      });
-
-      if (!hasAnchor) {
-          // Inject an anchor color into a random slot
-          const idx = Math.floor(Math.random() * palette.length);
-          
-          let h = baseH;
-          let s = 0, l = 0;
-          
-          if (Math.random() < 0.6) {
-              // Option A: Dark Anchor (Black/Deep Tone)
-              s = Math.floor(Math.random() * 30) + 10;
-              l = Math.floor(Math.random() * 20) + 5;
-          } else {
-              // Option B: Vivid Pop (Complementary)
-              h = (baseH + 180 + Math.floor(Math.random() * 60 - 30)) % 360;
-              s = Math.floor(Math.random() * 20) + 80; // 80-100 Sat
-              l = Math.floor(Math.random() * 30) + 40; // 40-70 Light
-          }
-          
-          const rgb = hslToRgb(h, s, l);
-          const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
-          // Overwrite with new strong color
-          palette[idx] = createColorData(hex);
-          registerColor(hex); // Register replacement
-      }
+  // 3. Fallback filler if palette < count
+  while(palette.length < count) {
+      safeAddColor(randomInt(0, 360), randomInt(50, 90), randomInt(40, 60));
   }
 
-  // 4. Shuffle (Randomize order to break gradients unless specifically desired)
+  // 4. Shuffle
+  // Almost always shuffle to avoid predictable gradients unless it's specific modes
   let result = palette.slice(0, count);
   
-  // Some modes look better sorted, some shuffled. 
-  // We apply a random chance to shuffle even sorted modes for variety.
-  if (chance(0.7)) {
+  if (mode !== 'monochromatic' && mode !== 'analogous') {
      for (let i = result.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [result[i], result[j]] = [result[j], result[i]];
+     }
+  } else if (chance(0.5)) {
+      // Sometimes shuffle mono/analogous too
+      for (let i = result.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [result[i], result[j]] = [result[j], result[i]];
      }
