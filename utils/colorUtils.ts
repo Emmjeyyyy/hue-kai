@@ -1,6 +1,16 @@
 import { ColorData, HSL, RGB, PaletteMode } from '../types';
+import { 
+    converter, 
+    differenceEuclidean, 
+    formatHex 
+} from 'culori';
 
-// --- HELPERS ---
+// --- CULORI SETUP ---
+const toOklch = converter('oklch');
+const toOklab = converter('oklab');
+const toRgb = converter('rgb');
+
+// --- HELPERS (Legacy/Display) ---
 
 export const componentToHex = (c: number): string => {
   const hex = c.toString(16);
@@ -84,55 +94,57 @@ export const generateRandomColor = (): string => {
   return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
 };
 
-export const sortColorsByVisualProgression = (colors: ColorData[]): ColorData[] => {
-    const getVals = (c: ColorData) => {
-         const rgb = hexToRgb(c.hex);
-         return rgbToHsl(rgb.r, rgb.g, rgb.b);
-    };
+// --- INTELLIGENT SORTING ---
 
-    // Store HSL values to avoid re-calculation during sort
-    const withVals = colors.map(c => ({ data: c, hsl: getVals(c) }));
+export const sortColorsByVisualProgression = (colors: ColorData[]): ColorData[] => {
+    // Enhance: Convert to OKLCH for perceptual sorting
+    const withVals = colors.map(c => {
+         const oklch = toOklch(c.hex);
+         // Culori might return undefined for hue on achromatic colors
+         return { 
+           data: c, 
+           oklch: oklch || { mode: 'oklch' as const, l: 0, c: 0, h: 0 } 
+         };
+    });
     
-    // Split into Achromatic (Low Saturation) and Chromatic
-    // Threshold 12% matches "almost grey" visual perception
+    // Perceptual Achromatic Threshold (Chroma < 0.04 in OKLCH is visually grey)
     const chromatic: typeof withVals = [];
     const achromatic: typeof withVals = [];
     
     for (const item of withVals) {
-        if (item.hsl.s < 12) { 
+        if (!item.oklch.h && item.oklch.h !== 0) item.oklch.h = 0;
+
+        if (item.oklch.c < 0.04) { 
             achromatic.push(item);
         } else {
             chromatic.push(item);
         }
     }
     
-    // Sort Achromatic by Lightness (Dark to Light)
-    achromatic.sort((a, b) => a.hsl.l - b.hsl.l);
+    // Sort Achromatic by Lightness (Dark to Light) using OKLCH Lightness
+    achromatic.sort((a, b) => a.oklch.l - b.oklch.l);
     
     // Sort Chromatic by Hue (Spectral)
     if (chromatic.length > 0) {
-        chromatic.sort((a, b) => a.hsl.h - b.hsl.h);
+        chromatic.sort((a, b) => (a.oklch.h || 0) - (b.oklch.h || 0));
         
-        // Find largest gap to rotate for visual continuity (Red wrap-around)
+        // Find largest perceptual gap
         let maxGap = 0;
         let gapIndex = 0;
         
         for (let i = 0; i < chromatic.length; i++) {
-            const curr = chromatic[i].hsl.h;
-            const next = chromatic[(i + 1) % chromatic.length].hsl.h;
-            // Calculate distance in 360 circle
+            const curr = chromatic[i].oklch.h || 0;
+            const next = chromatic[(i + 1) % chromatic.length].oklch.h || 0;
+            
             let diff = next - curr;
             if (diff < 0) diff += 360;
             
-            // We look for the largest "jump" in hue. This jump represents the
-            // natural break point in the color wheel for this specific palette.
             if (diff > maxGap) {
                 maxGap = diff;
                 gapIndex = i;
             }
         }
         
-        // Rotate: The element AFTER the gap should be the start
         const startIdx = (gapIndex + 1) % chromatic.length;
         const rotated = [
             ...chromatic.slice(startIdx),
@@ -142,13 +154,13 @@ export const sortColorsByVisualProgression = (colors: ColorData[]): ColorData[] 
         chromatic.splice(0, chromatic.length, ...rotated);
     }
     
-    // Combine: Achromatic first to act as anchors, then Chromatic spectrum
     return [...achromatic.map(x => x.data), ...chromatic.map(x => x.data)];
 };
 
 // --- SIGNATURE & ANTI-REPETITION LOGIC ---
 
 // Calculate a structural signature for the palette
+// NOTE: Preserving original HSL bucket logic as requested for identity/behavior
 const calculatePaletteSignature = (colors: ColorData[]): string => {
     const hsls = colors.map(c => {
         const rgb = hexToRgb(c.hex);
@@ -164,44 +176,35 @@ const calculatePaletteSignature = (colors: ColorData[]): string => {
     const roles: string[] = [];
 
     hsls.forEach(hsl => {
-        // Update contrast metrics
         minL = Math.min(minL, hsl.l);
         maxL = Math.max(maxL, hsl.l);
 
-        // Coarse buckets for S/L
         satBuckets.push(Math.floor(hsl.s / 20));
         lumBuckets.push(Math.floor(hsl.l / 20));
 
-        // Define Neutral (s < 12)
         const isNeutral = hsl.s < 12;
 
         if (isNeutral) {
             neutralCount++;
-            // Neutral Roles
-            if (hsl.l < 30) roles.push('ND'); // Neutral Dark
-            else if (hsl.l > 70) roles.push('NL'); // Neutral Light
-            else roles.push('NM'); // Neutral Mid
+            if (hsl.l < 30) roles.push('ND'); 
+            else if (hsl.l > 70) roles.push('NL'); 
+            else roles.push('NM'); 
         } else {
-            // Chromatic Roles
-            // Bucket Hue for composition (15 deg steps)
             hueBuckets.push(Math.floor(hsl.h / 15));
-
-            if (hsl.s > 75) roles.push('V'); // Vivid
-            else if (hsl.l < 30) roles.push('D'); // Dark
-            else if (hsl.l > 70) roles.push('L'); // Light
-            else roles.push('M'); // Mid
+            if (hsl.s > 75) roles.push('V'); 
+            else if (hsl.l < 30) roles.push('D'); 
+            else if (hsl.l > 70) roles.push('L'); 
+            else roles.push('M'); 
         }
     });
 
-    // Sort to ensure order independence (Canonical form)
     hueBuckets.sort((a,b) => a - b);
     satBuckets.sort((a,b) => a - b);
     lumBuckets.sort((a,b) => a - b);
     roles.sort();
 
-    const contrast = Math.floor((maxL - minL) / 20); // Coarse contrast bucket
+    const contrast = Math.floor((maxL - minL) / 20); 
 
-    // Example Signature: "H:1,5,10|S:1,3,5|L:2,4,4|R:D,L,V|N:0|C:3"
     return `H:${hueBuckets.join(',')}|S:${satBuckets.join(',')}|L:${lumBuckets.join(',')}|R:${roles.join(',')}|N:${neutralCount}|C:${contrast}`;
 };
 
@@ -212,15 +215,12 @@ const randomInt = (min: number, max: number) => Math.floor(randomRange(min, max)
 const clamp = (val: number, min: number, max: number) => Math.min(max, Math.max(min, val));
 const chance = (prob: number) => Math.random() < prob;
 
-// Global history to prevent recent repetition
 const globalHistory = new Set<string>();
 const HISTORY_LIMIT = 60; 
 
-// Track recent base hues to force diversity over time
 const recentBaseHues: number[] = [];
 const BASE_HUE_LIMIT = 5;
 
-// Palette Signature History
 const recentSignatures: string[] = [];
 const SIGNATURE_LIMIT = 30;
 
@@ -246,11 +246,10 @@ const registerSignature = (sig: string) => {
     }
 }
 
-// Check if a hue is too close to recently used base hues
 const isHueRecentlyUsed = (h: number) => {
     return recentBaseHues.some(recent => {
         const diff = Math.min(Math.abs(h - recent), 360 - Math.abs(h - recent));
-        return diff < 30; // 30 degree exclusion zone
+        return diff < 30; 
     });
 }
 
@@ -263,109 +262,108 @@ interface Vibe {
 
 const getWeightedVibe = (): Vibe => {
   const r = Math.random();
-  // Revised logic to reduce frequency of washed-out pastels
-  // 40% Vivid (High Energy)
   if (r < 0.40) return { name: 'vivid', sMin: 70, sMax: 100, lMin: 40, lMax: 65 };
-  // 25% Bright (Good for UI, high L but good S)
   if (r < 0.65) return { name: 'bright', sMin: 60, sMax: 90, lMin: 70, lMax: 90 }; 
-  // 15% Deep (Darker, richer)
   if (r < 0.80) return { name: 'deep', sMin: 40, sMax: 80, lMin: 15, lMax: 35 };
-  // 10% Dynamic (Full Range)
   if (r < 0.90) return { name: 'dynamic', sMin: 20, sMax: 100, lMin: 20, lMax: 90 };
-  // 5% Pastel (The washed out look, kept rare)
   if (r < 0.95) return { name: 'pastel', sMin: 30, sMax: 60, lMin: 85, lMax: 96 };
-  // 5% Muted
   return { name: 'muted', sMin: 5, sMax: 30, lMin: 40, lMax: 70 };
 };
 
-// Check if two colors are perceptually too similar
+// Check if two colors are perceptually too similar using Oklab Distance
 const areColorsTooSimilar = (h1: number, s1: number, l1: number, h2: number, s2: number, l2: number): boolean => {
-    const hDiff = Math.min(Math.abs(h1 - h2), 360 - Math.abs(h1 - h2));
-    const sDiff = Math.abs(s1 - s2);
-    const lDiff = Math.abs(l1 - l2);
+    // Construct Culori objects from HSL
+    const c1 = { mode: 'hsl' as const, h: h1, s: s1/100, l: l1/100 };
+    const c2 = { mode: 'hsl' as const, h: h2, s: s2/100, l: l2/100 };
+    
+    // Calculate Euclidean distance in Oklab
+    // Oklab is perceptually uniform.
+    // Distance > 0.02 is usually JND (Just Noticeable Difference).
+    // Distance > 0.05 is clearly distinct.
+    const dist = differenceEuclidean('oklab')(c1, c2);
+    
+    // Fallback if NaN
+    if (typeof dist !== 'number' || isNaN(dist)) return false;
 
-    if (hDiff < 10) {
-        if (s1 < 10 && s2 < 10) return lDiff < 15;
-        return lDiff < 20 && sDiff < 20;
-    }
-    if (hDiff < 30) {
-        return lDiff < 15 && sDiff < 15;
-    }
-    return false;
+    // Use a threshold that ensures colors are not just distinguishable but "different enough" for a palette
+    return dist < 0.06;
 }
 
-// Ensure palette is not "washed out" or boring
+// Ensure palette is not "washed out" or boring using OKLCH intelligence
 const enforceContrastAndVibrancy = (palette: ColorData[]): ColorData[] => {
     if (palette.length < 2) return palette;
 
-    const hsls = palette.map(c => {
-        const rgb = hexToRgb(c.hex);
-        return rgbToHsl(rgb.r, rgb.g, rgb.b);
+    const oklchColors = palette.map(c => {
+        const o = toOklch(c.hex);
+        return o || { mode: 'oklch' as const, l: 0, c: 0, h: 0 };
     });
 
-    // Metrics
-    const lValues = hsls.map(c => c.l);
+    // Metrics in OKLCH
+    const lValues = oklchColors.map(c => c.l);
     const minL = Math.min(...lValues);
     const maxL = Math.max(...lValues);
     const rangeL = maxL - minL;
     
-    // Check for "Washed Out" (Cluster of High L, Mid S)
-    const washedOutCount = hsls.filter(c => c.l > 75 && c.s < 70).length;
-    const isWashedOut = washedOutCount / palette.length >= 0.7; // 70% or more are washed out
+    // "Washed Out" Detection in OKLCH:
+    // High Lightness (> 0.85) and Low Chroma (< 0.1)
+    const washedOutCount = oklchColors.filter(c => c.l > 0.85 && c.c < 0.1).length;
+    const isWashedOut = washedOutCount / palette.length >= 0.7;
 
-    // Check for "Dull" (Low Saturation everywhere)
-    const dullCount = hsls.filter(c => c.s < 30).length;
+    // "Dull" Detection:
+    // Low Chroma everywhere (< 0.05)
+    const dullCount = oklchColors.filter(c => c.c < 0.05).length;
     const isDull = dullCount / palette.length >= 0.8;
 
-    // Check for "Flat" (No lightness contrast)
-    const isFlat = rangeL < 25;
+    // "Flat" Detection:
+    // Low dynamic range
+    const isFlat = rangeL < 0.25;
 
     let modified = false;
 
+    // We apply fixes by modifying the OKLCH object then converting back
     if (isWashedOut) {
         // Inject a deep anchor
-        // Usually index 0 or random
         const idx = 0;
-        hsls[idx].l = randomInt(15, 30);
-        hsls[idx].s = Math.max(hsls[idx].s, 50); // Ensure it has some color
+        // Set L to ~0.25 (dark), ensure some chroma
+        oklchColors[idx].l = randomRange(0.2, 0.3);
+        if (oklchColors[idx].c < 0.05) oklchColors[idx].c = 0.1;
         modified = true;
         
-        // If we have many colors, inject a vibrant accent too
+        // Inject vibrant accent
         if (palette.length >= 4) {
              const idx2 = palette.length - 1;
-             hsls[idx2].l = randomInt(45, 60);
-             hsls[idx2].s = randomInt(80, 100);
+             oklchColors[idx2].l = randomRange(0.5, 0.7);
+             oklchColors[idx2].c = randomRange(0.15, 0.25); // Vibrant in Oklch
+             modified = true;
         }
     } else if (isDull) {
         // Inject a Vivid Pop
         const idx = randomInt(0, palette.length - 1);
-        hsls[idx].s = randomInt(85, 100);
-        hsls[idx].l = randomInt(50, 65);
+        oklchColors[idx].c = randomRange(0.2, 0.3); // High chroma
+        oklchColors[idx].l = randomRange(0.5, 0.7);
         modified = true;
     } else if (isFlat) {
         // Stretch contrast
         // Find brightest and darkest indices
         let minIdx = 0, maxIdx = 0;
-        hsls.forEach((c, i) => {
-            if (c.l < hsls[minIdx].l) minIdx = i;
-            if (c.l > hsls[maxIdx].l) maxIdx = i;
+        oklchColors.forEach((c, i) => {
+            if (c.l < oklchColors[minIdx].l) minIdx = i;
+            if (c.l > oklchColors[maxIdx].l) maxIdx = i;
         });
 
-        // Push extremes
-        if (hsls[minIdx].l > 20) {
-            hsls[minIdx].l = Math.max(5, hsls[minIdx].l - 25);
+        if (oklchColors[minIdx].l > 0.3) {
+            oklchColors[minIdx].l = Math.max(0.05, oklchColors[minIdx].l - 0.25);
             modified = true;
         }
-        if (hsls[maxIdx].l < 85) {
-             hsls[maxIdx].l = Math.min(98, hsls[maxIdx].l + 15);
+        if (oklchColors[maxIdx].l < 0.9) {
+             oklchColors[maxIdx].l = Math.min(0.98, oklchColors[maxIdx].l + 0.15);
              modified = true;
         }
     }
 
     if (modified) {
-        return hsls.map(h => {
-             const rgb = hslToRgb(h.h, h.s, h.l);
-             const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
+        return oklchColors.map(o => {
+             const hex = formatHex(o);
              return createColorData(hex);
         });
     }
@@ -414,6 +412,7 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
             l = clamp(l, 5, 98);
 
             for (const pc of paletteColors) {
+                // Uses improved Oklab distance check
                 if (areColorsTooSimilar(h, s, l, pc.h, pc.s, pc.l)) {
                     return false; 
                 }
@@ -443,18 +442,19 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
         };
 
         // --- MODE EXECUTION ---
+        // (Logic unchanged from original spec, using safeAddColor wrapper)
+        
         let strategyUsed = "";
 
         if (mode === 'random') {
             const strategies = [
                 'golden-ratio', 'analogous-walk', 'triadic-scatter', 
-                'neutral-pop', 'high-contrast-clash', // Removed pastel-dream from main random list to make it rarer (it depends on Vibe now or luck)
+                'neutral-pop', 'high-contrast-clash',
                 'monochromatic-texture', 'structural-duo', 'structural-trio', 
                 'anchor-focus', 'polychrome', 'divergent', 
                 'complex-rhythm', 'cinematic'
             ];
             
-            // Re-inject pastel-dream with low probability
             if (chance(0.05)) strategies.push('pastel-dream');
 
             const strategy = strategies[Math.floor(Math.random() * strategies.length)];
@@ -661,9 +661,7 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
 
         let finalPalette = palette.slice(0, count);
 
-        // --- ENFORCE CONTRAST & VIBRANCY ---
-        // Post-processing to avoid washed-out/dull palettes (unless strict mode like mono)
-        // We only skip this for monochromatic/shades which have their own strict logic
+        // --- ENFORCE CONTRAST & VIBRANCY (Upgraded to OKLCH) ---
         if (mode !== 'monochromatic' && mode !== 'shades') {
             finalPalette = enforceContrastAndVibrancy(finalPalette);
         }
