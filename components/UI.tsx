@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Copy, Lock, Unlock, Check } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Copy, Lock, Unlock, Check, Blend } from 'lucide-react';
 import { ColorData } from '../types';
+import { hexToRgb, rgbToHsl, hslToRgb, rgbToHex, createColorData } from '../utils/colorUtils';
 
 export const CyberButton: React.FC<{ 
   onClick?: () => void; 
@@ -122,9 +123,42 @@ export const CyberButton: React.FC<{
 export const ColorCard: React.FC<{
   color: ColorData;
   onLock?: () => void;
+  onColorChange?: (newColor: ColorData) => void;
   fullHeight?: boolean;
-}> = ({ color, onLock, fullHeight = false }) => {
+  resetTrigger?: number;
+}> = ({ color, onLock, onColorChange, fullHeight = false, resetTrigger }) => {
   const [copied, setCopied] = useState(false);
+  const [showShades, setShowShades] = useState(false);
+
+  useEffect(() => {
+     setShowShades(false);
+  }, [resetTrigger]);
+
+  const shades = useMemo(() => {
+    if (!showShades) return [];
+    const { r, g, b } = hexToRgb(color.hex);
+    const { h, s, l: originalL } = rgbToHsl(r, g, b);
+    const result = [];
+    for (let i = 15; i >= 0; i--) {
+        const l = Math.max(2, Math.min(98, i * (100 / 15))); 
+        const rgb = hslToRgb(h, s, l);
+        const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
+        result.push({ hex, l, isOriginal: false });
+    }
+    
+    let closestIdx = 0;
+    let minDiff = Infinity;
+    for (let i = 0; i < result.length; i++) {
+       const diff = Math.abs(result[i].l - originalL);
+       if (diff < minDiff) {
+           minDiff = diff;
+           closestIdx = i;
+       }
+    }
+    
+    result[closestIdx] = { hex: color.hex.toUpperCase(), l: originalL, isOriginal: true };
+    return result;
+  }, [color.hex, showShades]);
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -138,6 +172,41 @@ export const ColorCard: React.FC<{
       className={`relative group transition-all duration-500 ease-out overflow-hidden flex flex-col ${fullHeight ? 'h-full flex-1 min-h-[120px]' : 'h-64 w-full rounded-lg'}`}
       style={{ backgroundColor: color.hex }}
     >
+      {showShades && (
+        <div className="absolute inset-0 flex flex-col z-30 animate-in fade-in zoom-in-95 duration-200">
+          {shades.map((shade, i) => {
+            const isLight = shade.l > 55;
+            const textColor = isLight ? 'text-black/80' : 'text-white';
+            const dotColor = isLight ? 'bg-black/80' : 'bg-white';
+            
+            return (
+            <div 
+              key={i} 
+              className="flex-1 w-full cursor-pointer hover:z-10 hover:scale-[1.05] transition-transform flex items-center justify-center group/shade"
+              style={{ backgroundColor: shade.hex }}
+              onClick={(e) => {
+                  e.stopPropagation();
+                  if (onColorChange) {
+                      onColorChange(createColorData(shade.hex));
+                  }
+                  setShowShades(false);
+              }}
+            >
+              {shade.isOriginal ? (
+                <div className="flex flex-col items-center">
+                   <div className={`w-2 h-2 rounded-full ${dotColor} mb-1 shadow-sm`}></div>
+                   <span className={`${textColor} text-xs font-bold tracking-wider`}>{shade.hex.replace('#', '')}</span>
+                </div>
+              ) : (
+                <span className={`${textColor} text-xs font-bold tracking-wider opacity-0 group-hover/shade:opacity-100 transition-opacity`}>
+                  {shade.hex.replace('#', '')}
+                </span>
+              )}
+            </div>
+          )})}
+        </div>
+      )}
+
       {/* Shine effect */}
       <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
       
@@ -171,6 +240,12 @@ export const ColorCard: React.FC<{
               className="text-white/70 hover:text-white hover:scale-110 transition-all active:scale-95"
             >
                <Copy size={20} />
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setShowShades(!showShades); }}
+              className="text-white/70 hover:text-white hover:scale-110 transition-all active:scale-95"
+            >
+               <Blend size={20} />
             </button>
           </div>
         </div>

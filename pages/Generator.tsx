@@ -34,6 +34,7 @@ export const Generator: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [count, setCount] = useState(5);
+  const [generationCount, setGenerationCount] = useState(0);
   
   // Filter State
   const [activeModes, setActiveModes] = useState<PaletteMode[]>(ALL_MODES.map(m => m.value));
@@ -75,6 +76,7 @@ export const Generator: React.FC = () => {
 
   const generate = useCallback(() => {
     setLoading(true);
+    setGenerationCount(prev => prev + 1);
     // Simulate slight calculation delay for "heavy machinery" feel
     setTimeout(() => {
         setColors(prev => {
@@ -152,6 +154,16 @@ export const Generator: React.FC = () => {
       const copy = [...prev];
       if (copy[index]) {
         copy[index] = { ...copy[index], locked: !copy[index].locked };
+      }
+      return copy;
+    });
+  };
+
+  const handleColorChange = (index: number, newColor: ColorData) => {
+    setColors(prev => {
+      const copy = [...prev];
+      if (copy[index]) {
+        copy[index] = { ...newColor, locked: copy[index].locked };
       }
       return copy;
     });
@@ -338,7 +350,9 @@ export const Generator: React.FC = () => {
                <ColorCard 
                  color={color} 
                  onLock={() => toggleLock(index)}
+                 onColorChange={(newColor) => handleColorChange(index, newColor)}
                  fullHeight
+                 resetTrigger={generationCount}
                />
             </div>
           ))}
