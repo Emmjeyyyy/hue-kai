@@ -231,9 +231,7 @@ export const ColorWheel: React.FC = () => {
         {/* Left: Controls & Wheel */}
         <div className="w-full md:w-1/2 p-8 flex flex-col items-center justify-center relative bg-gradient-to-br from-gray-900 to-black border-r border-white/10 overflow-y-auto md:overflow-hidden">
           
-          <div className="absolute top-4 left-4 text-xs font-mono text-gray-500 pointer-events-none">
-            INPUT_MATRIX // H:{hue} S:{saturation} L:{lightness}
-          </div>
+
 
           {/* Hex Input Field */}
           <div className="mb-10 relative group mt-8 flex justify-center">

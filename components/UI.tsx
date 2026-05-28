@@ -17,7 +17,7 @@ export const CyberButton: React.FC<{
   // to the span itself using `group-hover` and `group-active`. 
   // This ensures reliability and fixes issues where the text remained static.
   
-  const baseStyle = "relative font-mono font-bold uppercase tracking-wider group isolate disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed";
+  const baseStyle = "relative font-mono font-bold uppercase tracking-wider group isolate disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed focus:outline-none";
   
   const variants = {
     primary: `

@@ -38,4 +38,6 @@ export type PaletteMode =
   | 'industrial-concrete'
   | 'smooth-gradient'
   | 'iridescent-flow'
-  | 'neon-maximalist';
+  | 'neon-maximalist'
+  | 'noir-accent'
+  | 'autumn-retro';

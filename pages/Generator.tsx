@@ -13,6 +13,8 @@ const ALL_MODES: { value: PaletteMode; label: string }[] = [
     { value: 'iridescent-flow', label: 'Iridescent Flow' },
     { value: 'neon-maximalist', label: 'Neon Maximalist' },
     { value: 'obsidian-highlight', label: 'Obsidian Highlight' },
+    { value: 'noir-accent', label: 'Noir Accent' },
+    { value: 'autumn-retro', label: 'Autumn Retro' },
     { value: 'industrial-concrete', label: 'Industrial Concrete' },
     { value: 'cyberpunk', label: 'Cyberpunk' },
     { value: 'modern-ui', label: 'Modern UI' },
@@ -265,8 +267,9 @@ export const Generator: React.FC = () => {
                 <div className="relative" ref={filterRef}>
                     <CyberButton
                          onClick={() => setIsFilterOpen(!isFilterOpen)}
-                         className={`w-10 h-10 p-0 flex items-center justify-center rounded-full -translate-y-[3px] border ${isFilterOpen ? 'border-chroma-cyan text-chroma-cyan' : 'border-transparent text-gray-400'}`}
+                         className={`w-10 h-10 p-0 flex items-center justify-center rounded-full -translate-y-[3px] border ${isFilterOpen ? 'border-chroma-cyan text-chroma-cyan hover:text-chroma-cyan' : 'border-transparent text-gray-400'}`}
                          variant="dark"
+                         pressed={isFilterOpen}
                     >
                         <SlidersHorizontal size={18} />
                     </CyberButton>
