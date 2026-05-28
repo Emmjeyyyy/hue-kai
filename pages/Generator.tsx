@@ -29,17 +29,23 @@ const ALL_MODES: { value: PaletteMode; label: string }[] = [
     { value: 'shades', label: 'Shades' },
 ];
 
+let cachedColors: ColorData[] = [];
+
 export const Generator: React.FC = () => {
-  const [colors, setColors] = useState<ColorData[]>([]);
+  const [colors, setColors] = useState<ColorData[]>(cachedColors);
   const [loading, setLoading] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
-  const [count, setCount] = useState(5);
+  const [count, setCount] = useState(cachedColors.length > 0 ? cachedColors.length : 5);
   const [generationCount, setGenerationCount] = useState(0);
   
   // Filter State
   const [activeModes, setActiveModes] = useState<PaletteMode[]>(ALL_MODES.map(m => m.value));
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    cachedColors = colors;
+  }, [colors]);
 
   // Close filter when clicking outside
   useEffect(() => {
@@ -89,10 +95,7 @@ export const Generator: React.FC = () => {
             // 3. Select Mode from Active Modes
             let selectedMode: PaletteMode = 'random';
             if (activeModes.length > 0) {
-                // Weighted selection if needed, but for now uniform random among enabled
-                // We could give 'random' higher weight if it's enabled to add variety
                 const pool = [...activeModes];
-                // Optional: Duplicate 'random' in the pool to increase its chance if selected
                 if (pool.includes('random')) {
                     pool.push('random', 'random');
                 }
@@ -115,12 +118,19 @@ export const Generator: React.FC = () => {
     }, 150);
   }, [count, activeModes]);
 
-  // Initial generation and auto-regeneration when count changes
-  // We only run this on mount or when count changes, NOT when filters change
+  const isInitialMount = useRef(true);
+  const prevCount = useRef(count);
   useEffect(() => {
-    generate();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [count]); // Removed generate from deps to avoid loop if generate changes
+    if (isInitialMount.current) {
+        isInitialMount.current = false;
+        if (cachedColors.length === 0) {
+            generate();
+        }
+    } else if (prevCount.current !== count) {
+        prevCount.current = count;
+        generate();
+    }
+  }, [count, generate]);
 
   // Spacebar shortcut with visual feedback
   useEffect(() => {

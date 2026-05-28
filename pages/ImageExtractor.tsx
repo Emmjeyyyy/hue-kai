@@ -260,11 +260,7 @@ export const ImageExtractor: React.FC = () => {
                             {isAnalyzing && (
                                 <div className="absolute inset-0 z-20 bg-gradient-to-b from-transparent via-chroma-cyan/20 to-transparent h-[10%] w-full animate-scanline pointer-events-none" />
                             )}
-                            
-                            <div className="absolute bottom-4 left-4 z-20 font-mono text-xs bg-black/80 backdrop-blur px-3 py-1.5 rounded text-chroma-cyan border border-chroma-cyan/30 flex items-center gap-2">
-                                <div className="w-2 h-2 bg-chroma-cyan rounded-full animate-pulse"></div>
-                                TARGET_LOCKED
-                            </div>
+
                         </>
                     ) : (
                         <div className="text-center p-12 flex flex-col items-center">

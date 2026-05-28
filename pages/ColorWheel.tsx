@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Copy, Check } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { ColorCard } from '../components/UI';
 import { hslToRgb, rgbToHex, createColorData, hexToRgb, rgbToHsl } from '../utils/colorUtils';
@@ -15,6 +15,8 @@ export const ColorWheel: React.FC = () => {
   
   const wheelRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [copiedHex, setCopiedHex] = useState(false);
+  const [copiedCss, setCopiedCss] = useState(false);
 
   // Update palette when base parameters change using Strict Harmony Logic
   useEffect(() => {
@@ -146,6 +148,19 @@ export const ColorWheel: React.FC = () => {
       }
   };
 
+  const handleCopyHex = () => {
+      navigator.clipboard.writeText(manualHex);
+      setCopiedHex(true);
+      setTimeout(() => setCopiedHex(false), 1500);
+  };
+
+  const handleCopyCss = () => {
+      const cssString = `:root {\n${palette.map((c, i) => `  --color-${i + 1}: ${c.hex};`).join('\n')}\n}`;
+      navigator.clipboard.writeText(cssString);
+      setCopiedCss(true);
+      setTimeout(() => setCopiedCss(false), 1500);
+  };
+
   // Window listeners for mouse drag
   useEffect(() => {
     const handleWindowMouseMove = (e: MouseEvent) => {
@@ -221,15 +236,24 @@ export const ColorWheel: React.FC = () => {
           </div>
 
           {/* Hex Input Field */}
-          <div className="mb-10 relative group mt-8">
-             <input 
-               type="text" 
-               value={manualHex}
-               onChange={handleHexInputChange}
-               maxLength={7}
-               className="bg-black/30 border border-gray-700 rounded px-4 py-2 font-mono text-xl text-chroma-cyan focus:border-chroma-cyan focus:outline-none focus:shadow-[0_0_15px_rgba(0,255,255,0.3)] w-40 text-center uppercase tracking-widest transition-all hover:border-gray-500"
-               placeholder="#000000"
-             />
+          <div className="mb-10 relative group mt-8 flex justify-center">
+             <div className="relative">
+                 <input 
+                   type="text" 
+                   value={manualHex}
+                   onChange={handleHexInputChange}
+                   maxLength={7}
+                   className="bg-black/30 border border-gray-700 rounded py-2 pl-4 pr-10 font-mono text-xl text-chroma-cyan focus:border-chroma-cyan focus:outline-none focus:shadow-[0_0_15px_rgba(0,255,255,0.3)] w-40 text-center uppercase tracking-widest transition-all hover:border-gray-500"
+                   placeholder="#000000"
+                 />
+                 <button 
+                    onClick={handleCopyHex}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-chroma-cyan transition-colors"
+                    title="Copy Hex"
+                 >
+                    {copiedHex ? <Check size={18} className="text-green-400" /> : <Copy size={18} />}
+                 </button>
+             </div>
           </div>
 
           {/* Color Wheel Implementation */}
@@ -352,8 +376,17 @@ export const ColorWheel: React.FC = () => {
              ))}
            </div>
            
-           <div className="mt-8 p-4 border border-white/10 rounded bg-white/5">
-             <h4 className="font-mono text-sm text-gray-400 mb-2">CSS EXPORT</h4>
+           <div className="mt-8 p-4 border border-white/10 rounded bg-white/5 relative group">
+             <div className="flex justify-between items-start mb-2">
+                 <h4 className="font-mono text-sm text-gray-400">CSS EXPORT</h4>
+                 <button 
+                    onClick={handleCopyCss}
+                    className="text-gray-500 hover:text-chroma-cyan transition-colors"
+                    title="Copy CSS"
+                 >
+                    {copiedCss ? <Check size={16} className="text-green-400" /> : <Copy size={16} />}
+                 </button>
+             </div>
              <code className="text-xs text-chroma-cyan font-mono block whitespace-pre-wrap break-all">
                {`:root {\n${palette.map((c, i) => `  --color-${i + 1}: ${c.hex};`).join('\n')}\n}`}
              </code>
