@@ -5,18 +5,33 @@ import { ColorCard } from '../components/UI';
 import { hslToRgb, rgbToHex, createColorData, hexToRgb, rgbToHsl } from '../utils/colorUtils';
 import { ColorData, PaletteMode } from '../types';
 
+let cachedHue = 0;
+let cachedSaturation = 100;
+let cachedLightness = 50;
+let cachedMode: PaletteMode = 'complementary';
+let cachedManualHex = '#FF0000';
+
 export const ColorWheel: React.FC = () => {
-  const [hue, setHue] = useState(0);
-  const [saturation, setSaturation] = useState(100);
-  const [lightness, setLightness] = useState(50);
-  const [mode, setMode] = useState<PaletteMode>('complementary');
+  const [hue, setHue] = useState(cachedHue);
+  const [saturation, setSaturation] = useState(cachedSaturation);
+  const [lightness, setLightness] = useState(cachedLightness);
+  const [mode, setMode] = useState<PaletteMode>(cachedMode);
   const [palette, setPalette] = useState<ColorData[]>([]);
-  const [manualHex, setManualHex] = useState('#FF0000');
+  const [manualHex, setManualHex] = useState(cachedManualHex);
   
   const wheelRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [copiedHex, setCopiedHex] = useState(false);
   const [copiedCss, setCopiedCss] = useState(false);
+
+  // Sync state to cache
+  useEffect(() => {
+    cachedHue = hue;
+    cachedSaturation = saturation;
+    cachedLightness = lightness;
+    cachedMode = mode;
+    cachedManualHex = manualHex;
+  }, [hue, saturation, lightness, mode, manualHex]);
 
   // Update palette when base parameters change using Strict Harmony Logic
   useEffect(() => {
