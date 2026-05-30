@@ -288,7 +288,7 @@ export const ColorWheel: React.FC = () => {
                  className={`text-[10px] flex items-center gap-1 transition-colors ${
                    lightness === 50 
                      ? 'text-gray-700 opacity-50 cursor-not-allowed' 
-                     : 'text-gray-600 hover:text-chroma-cyan cursor-pointer'
+                     : 'text-gray-300 hover:text-chroma-cyan hover:drop-shadow-[0_0_5px_rgba(0,255,255,0.5)] cursor-pointer'
                  }`}
                  title="Reset to 50%"
                >
@@ -366,12 +366,25 @@ export const ColorWheel: React.FC = () => {
              GENERATED HARMONY
            </h3>
            
-           <div className="flex flex-col gap-4">
-             {palette.map((color, i) => (
-               <div key={i} className="animate-fadeIn opacity-0 fill-mode-forwards" style={{ animationDelay: `${i * 100}ms`, animationName: 'fadeIn' }}>
-                 <ColorCard color={color} />
-               </div>
-             ))}
+           <div className="flex flex-wrap gap-4">
+             {palette.map((color, i) => {
+                // Drive layout from palette.length — NOT mode — to prevent a
+                // one-frame mismatch where mode updates before palette does.
+                let basisClass = 'w-full';
+                if (palette.length === 2) {
+                   basisClass = 'w-[calc(50%-0.5rem)]';
+                } else if (palette.length === 3) {
+                   basisClass = 'w-[calc(33.333%-0.7rem)]';
+                } else if (palette.length === 4) {
+                   basisClass = 'w-[calc(50%-0.5rem)]';
+                }
+                
+                return (
+                 <div key={i} className={`${basisClass}`}>
+                   <ColorCard color={color} />
+                 </div>
+                );
+             })}
            </div>
            
            <div className="mt-8 p-4 border border-white/10 rounded bg-white/5 relative group">
