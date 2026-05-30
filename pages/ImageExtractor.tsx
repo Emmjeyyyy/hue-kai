@@ -173,7 +173,7 @@ export const ImageExtractor: React.FC = () => {
             // 5. Distinct Selection
             // Ensure the final list doesn't have two colors that look too similar,
             // even if they were distinct enough to survive the initial merge.
-            const finalCandidates: typeof scored = [];
+            const finalCandidates: (typeof scored[0] & { source?: { rx: number; ry: number } })[] = [];
             const outputThreshold = 0.12; // Stricter threshold for final display
 
             for (const c of scored) {
@@ -292,6 +292,13 @@ export const ImageExtractor: React.FC = () => {
         doc.setTextColor(100);
         const date = new Date().toLocaleDateString();
         doc.text(`Generated on ${date}`, 20, 32);
+
+        // Hex Code Group String
+        const hexGroup = palette.map(color => color.hex).join(',');
+        doc.setFont("courier", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(150, 150, 150);
+        doc.text(hexGroup, 20, 42);
 
         const startY = 50;
         const margin = 20;

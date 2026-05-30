@@ -236,6 +236,13 @@ export const Generator: React.FC = () => {
     const date = new Date().toLocaleDateString();
     doc.text(`Generated on ${date}`, 20, 32);
 
+    // Hex Code Group String
+    const hexGroup = colors.map(color => color.hex).join(',');
+    doc.setFont("courier", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(150, 150, 150);
+    doc.text(hexGroup, 20, 42);
+
     const startY = 50;
     const margin = 20;
     const gutter = 10;
