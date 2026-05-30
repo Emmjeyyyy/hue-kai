@@ -6,6 +6,7 @@ import { createColorData, rgbToHex } from '../utils/colorUtils';
 import { ColorData } from '../types';
 import { converter, differenceEuclidean } from 'culori';
 import { jsPDF } from "jspdf";
+import namer from 'color-namer';
 
 const oklch = converter('oklch');
 const diff = differenceEuclidean('oklch');
@@ -369,8 +370,9 @@ export const ImageExtractor: React.FC = () => {
             doc.setFont("courier", "bold");
             doc.setFontSize(useTwoColumns ? 10 : 12);
 
-            // Hex Code
-            doc.text(color.hex, x + 5, y + cardHeight - textAreaHeight + (useTwoColumns ? 8 : 11));
+            // Hex Code and Name
+            const nameAndHex = `${color.hex} | ${namer(color.hex).ntc[0].name}`;
+            doc.text(nameAndHex, x + 5, y + cardHeight - textAreaHeight + (useTwoColumns ? 8 : 11));
 
             // RGB (Right aligned)
             doc.setFont("helvetica", "normal");

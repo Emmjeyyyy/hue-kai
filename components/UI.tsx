@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Copy, Lock, Unlock, Check, Blend } from 'lucide-react';
+import namer from 'color-namer';
 import { ColorData } from '../types';
 import { hexToRgb, rgbToHsl, hslToRgb, rgbToHex, createColorData } from '../utils/colorUtils';
 
@@ -218,6 +219,9 @@ export const ColorCard: React.FC<{
       <div className={`relative p-4 bg-black/50 border-b border-white/10 group/card`}>
         <div className="flex justify-between items-start">
           <div className="flex flex-col gap-1">
+            <span className="text-white/60 font-bold font-mono text-[10px] tracking-widest uppercase truncate max-w-[180px]">
+              {namer(color.hex).ntc[0].name}
+            </span>
             <span 
               className="font-mono text-2xl font-bold tracking-widest text-white cursor-pointer group-hover/card:text-chroma-yellow [text-shadow:0_2px_4px_rgba(0,0,0,0.5)]"
               onClick={handleCopy}
@@ -256,6 +260,7 @@ export const ColorCard: React.FC<{
           </div>
         </div>
       </div>
+
 
       {/* Japanese decorative text */}
       <div className="absolute bottom-3 right-3 text-white/10 font-bold select-none pointer-events-none text-xs text-right">

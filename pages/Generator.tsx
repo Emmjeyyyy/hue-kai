@@ -5,6 +5,7 @@ import { ColorCard, CyberButton } from '../components/UI';
 import { generatePalette, sortColorsByVisualProgression } from '../utils/colorUtils';
 import { ColorData, PaletteMode } from '../types';
 import { jsPDF } from "jspdf";
+import namer from 'color-namer';
 
 // Define all available modes for the filter
 const ALL_MODES: { value: PaletteMode; label: string }[] = [
@@ -288,8 +289,9 @@ export const Generator: React.FC = () => {
         doc.setFont("courier", "bold");
         doc.setFontSize(useTwoColumns ? 10 : 12);
         
-        // Hex Code
-        doc.text(color.hex, x + 5, y + cardHeight - textAreaHeight + (useTwoColumns ? 8 : 11));
+        // Hex Code and Name
+        const nameAndHex = `${color.hex} | ${namer(color.hex).ntc[0].name}`;
+        doc.text(nameAndHex, x + 5, y + cardHeight - textAreaHeight + (useTwoColumns ? 8 : 11));
         
         // RGB (Right aligned)
         doc.setFont("helvetica", "normal");
