@@ -44,6 +44,7 @@ const ALL_MODES: { value: PaletteMode; label: string }[] = [
     { value: 'holographic', label: 'Holographic' },
     { value: 'midnight', label: 'Midnight' },
     { value: 'pastel-dream', label: 'Pastel Dream' },
+    { value: 'nature-landscape', label: 'Nature Landscape' },
 ];
 
 let cachedColors: ColorData[] = [];
@@ -322,15 +323,28 @@ export const Generator: React.FC = () => {
                     
                     {/* Filter Popover */}
                     {isFilterOpen && (
-                        <div className="absolute top-14 left-0 w-[300px] md:w-[400px] bg-black/95 backdrop-blur-xl border border-white/10 rounded-xl p-4 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="absolute top-14 left-0 w-[350px] md:w-[600px] bg-black/95 backdrop-blur-xl border border-white/10 rounded-xl p-4 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-200">
                              <div className="flex justify-between items-center mb-4 border-b border-white/10 pb-2">
                                  <span className="font-mono text-sm text-chroma-cyan tracking-widest">ACTIVE MODES</span>
                                  <button onClick={toggleAllModes} className="text-xs text-gray-400 hover:text-white underline">
                                      {activeModes.length === ALL_MODES.length ? 'RESET' : 'SELECT ALL'}
                                  </button>
                              </div>
-                             <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
-                                 {ALL_MODES.map((mode) => (
+
+                             <div className="grid grid-cols-3 gap-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                                 <button
+                                     onClick={() => toggleMode('random')}
+                                     className={`
+                                         col-span-3 flex items-center justify-between px-3 py-2 text-xs font-mono border rounded transition-all
+                                         ${activeModes.includes('random') 
+                                             ? 'bg-chroma-violet/50 border-chroma-cyan/50 text-white shadow-[0_0_5px_rgba(0,255,255,0.2)]' 
+                                             : 'bg-transparent border-white/10 text-gray-500 hover:border-white/30'}
+                                     `}
+                                 >
+                                     <span>Random Mix</span>
+                                     {activeModes.includes('random') && <Check size={12} className="text-chroma-cyan" />}
+                                 </button>
+                                 {ALL_MODES.filter(m => m.value !== 'random').sort((a, b) => a.label.localeCompare(b.label)).map((mode) => (
                                      <button
                                          key={mode.value}
                                          onClick={() => toggleMode(mode.value)}
@@ -360,7 +374,7 @@ export const Generator: React.FC = () => {
                     >
                         <Minus size={14} />
                     </CyberButton>
-                    <span className="font-mono font-bold text-lg w-6 text-center bg-[linear-gradient(90deg,#FFFF00,#FFB347,#FF6961,#FF69B4,#DA70D6,#FFFF00)] bg-[length:200%_auto] animate-gradient-flow bg-clip-text text-transparent drop-shadow-[0_0_5px_rgba(255,255,255,0.4)]">
+                    <span className="select-none font-mono font-bold text-lg w-6 text-center bg-[linear-gradient(90deg,#FFFF00,#FFB347,#FF6961,#FF69B4,#DA70D6,#FFFF00)] bg-[length:200%_auto] animate-gradient-flow bg-clip-text text-transparent drop-shadow-[0_0_5px_rgba(255,255,255,0.4)]">
                         {count}
                     </span>
                     <CyberButton 

@@ -56,4 +56,5 @@ export type PaletteMode =
   | 'deep-space'
   | 'holographic'
   | 'midnight'
-  | 'pastel-dream';
+  | 'pastel-dream'
+  | 'nature-landscape';

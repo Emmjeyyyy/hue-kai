@@ -445,7 +445,7 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
             'autumn-retro', 'vaporwave', 'aurora', 'neo-brutalist',
             'glass-neon', 'liquid-metal', 'forest-canopy', 'ocean-depths',
             'royal-gold', 'colorblind-safe', 'high-contrast', 'deep-space',
-            'holographic', 'midnight', 'pastel-dream'
+            'holographic', 'midnight', 'pastel-dream', 'nature-landscape'
         ];
 
         // Logic:
@@ -615,6 +615,26 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
                 case 'pastel-dream':
                     for (let i = 0; i < count; i++) safeAddColor((baseH + (i * 70) + randomInt(-20, 20)) % 360, randomInt(40, 70), randomInt(80, 94));
                     break;
+                case 'nature-landscape': {
+                    for (let i = 0; i < count; i++) {
+                        const r = Math.random();
+                        if (r < 0.25) {
+                            // Off-white / Sand
+                            safeAddColor(randomInt(45, 60), randomInt(15, 35), randomInt(85, 95));
+                        } else if (r < 0.6) {
+                            // Greens (Moss, Forest)
+                            const h = randomInt(70, 95);
+                            const isDark = chance(0.5);
+                            safeAddColor(h, randomInt(40, 70), isDark ? randomInt(15, 25) : randomInt(30, 45));
+                        } else {
+                            // Blues (Sky, River)
+                            const h = randomInt(210, 230);
+                            const isLight = chance(0.5);
+                            safeAddColor(h, randomInt(60, 90), isLight ? randomInt(60, 75) : randomInt(45, 60));
+                        }
+                    }
+                    break;
+                }
                 case 'high-contrast-clash':
                     for (let i = 0; i < count; i++) {
                         const l = chance(0.5) ? randomInt(10, 25) : randomInt(80, 95);
