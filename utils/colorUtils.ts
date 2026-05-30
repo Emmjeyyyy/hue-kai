@@ -256,7 +256,7 @@ const areColorsTooSimilar = (h1: number, s1: number, l1: number, h2: number, s2:
 
     const dist = differenceEuclidean('oklab')(c1, c2);
     if (typeof dist !== 'number' || isNaN(dist)) return false;
-    return dist < 0.06;
+    return dist < 0.12;
 }
 
 const enforceContrastAndVibrancy = (palette: ColorData[]): ColorData[] => {
@@ -318,10 +318,55 @@ const enforceContrastAndVibrancy = (palette: ColorData[]): ColorData[] => {
     if (modified) {
         return oklchColors.map(o => {
             const hex = formatHex(o);
-            return createColorData(hex);
+            return createColorData(hex || '#000000');
         });
     }
     return palette;
+};
+
+const enforceDistinctColors = (palette: ColorData[]): ColorData[] => {
+    if (palette.length < 2) return palette;
+    
+    const oklchColors = palette.map(c => {
+        const o = toOklch(c.hex);
+        return o || { mode: 'oklch' as const, l: 0, c: 0, h: 0 };
+    });
+
+    const minDistance = 0.12; // Minimum Euclidean OKLAB distance to be considered "distinct"
+
+    for (let i = 1; i < oklchColors.length; i++) {
+        let current = oklchColors[i];
+        let attempts = 0;
+        let isTooSimilar = true;
+
+        while (isTooSimilar && attempts < 20) {
+            isTooSimilar = false;
+            for (let j = 0; j < i; j++) {
+                const dist = differenceEuclidean('oklab')(current, oklchColors[j]);
+                if (typeof dist === 'number' && dist < minDistance) {
+                    isTooSimilar = true;
+                    break;
+                }
+            }
+            
+            if (isTooSimilar) {
+                // Mutate the color to find a distinct space
+                if (attempts % 3 === 0) {
+                    // Huge Hue Shift
+                    current.h = ((current.h || 0) + 73 + (attempts * 15)) % 360; 
+                } else if (attempts % 3 === 1) {
+                    // Significant Lightness Shift
+                    current.l = current.l > 0.5 ? Math.max(0.1, current.l - 0.35) : Math.min(0.9, current.l + 0.35);
+                } else {
+                    // Significant Chroma Shift
+                    current.c = current.c < 0.1 ? current.c + 0.15 : Math.max(0.02, current.c - 0.15);
+                }
+                attempts++;
+            }
+        }
+    }
+
+    return oklchColors.map(o => createColorData(formatHex(o) || '#000000'));
 };
 
 // --- GENERATION ENGINE ---
@@ -457,7 +502,11 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
                     if (count > 3) safeAddColor(darkBaseHue + randomInt(-20, 20), randomInt(5, 15), randomInt(3, 8));
                     const deepCount = Math.max(1, count - 3);
                     for (let i = 0; i < deepCount; i++) safeAddColor(darkBaseHue + randomInt(-30, 30), randomInt(30, 60), randomInt(10, 18));
-                    while (palette.length < count) safeAddColor(neonHue + randomInt(-10, 10), randomInt(90, 100), randomInt(60, 90));
+                    let sf1 = 0;
+                    while (palette.length < count && sf1 < 50) {
+                        sf1++;
+                        safeAddColor(neonHue + randomInt(-10, 10), randomInt(90, 100), randomInt(60, 90));
+                    }
                     break;
                 }
                 case 'industrial-concrete': {
@@ -469,7 +518,9 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
                     safeAddColor(midHue, randomInt(10, 30), randomInt(40, 60));
                     const lightHue = isWarm ? randomInt(30, 60) : randomInt(200, 220);
                     safeAddColor(lightHue, randomInt(5, 25), randomInt(80, 92));
-                    while (palette.length < count) {
+                    let sf2 = 0;
+                    while (palette.length < count && sf2 < 50) {
+                        sf2++;
                         if (chance(0.5)) safeAddColor(darkHue + randomInt(-10, 10), randomInt(5, 20), randomInt(25, 40));
                         else safeAddColor(midHue + randomInt(-10, 10), randomInt(10, 30), randomInt(45, 65));
                     }
@@ -611,7 +662,9 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
                     }
 
                     // Fill the rest with neutral grays (light and medium)
-                    while (palette.length < count) {
+                    let sf3 = 0;
+                    while (palette.length < count && sf3 < 50) {
+                        sf3++;
                         safeAddColor(baseH, randomInt(0, 5), randomInt(40, 85));
                     }
                     break;
@@ -637,7 +690,9 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
                     safeAddColor(darkH, randomInt(60, 90), randomInt(15, 25));
 
                     // Fill the rest
-                    while (palette.length < count) {
+                    let sf4 = 0;
+                    while (palette.length < count && sf4 < 50) {
+                        sf4++;
                         safeAddColor((baseH + randomInt(0, 60)) % 360, randomInt(30, 60), randomInt(30, 70));
                     }
                     break;
@@ -725,9 +780,16 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
             }
         }
 
-        while (palette.length < count) {
+        let safetyCounter = 0;
+        while (palette.length < count && safetyCounter < 50) {
+            safetyCounter++;
             const hueBonus = chance(0.5) ? baseH + randomInt(120, 240) : randomInt(0, 360);
             safeAddColor(hueBonus % 360, randomInt(50, 100), randomInt(30, 80));
+        }
+        
+        // Final fallback if safeAddColor fails too many times
+        while (palette.length < count) {
+            palette.push(createColorData(generateRandomColor()));
         }
 
         let finalPalette = palette.slice(0, count);
@@ -737,6 +799,9 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
         if (mode !== 'monochromatic' && mode !== 'shades' && !skipPostProcess) {
             finalPalette = enforceContrastAndVibrancy(finalPalette);
         }
+
+        // --- ENFORCE PERCEPTUAL DISTINCTION (Unconditional) ---
+        finalPalette = enforceDistinctColors(finalPalette);
 
         const noShuffleModes = ['monochromatic', 'analogous', 'warm-earth', 'hyper-warm'];
 

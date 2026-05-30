@@ -82,11 +82,18 @@ export const Generator: React.FC = () => {
       }
   };
 
+  const generateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const generate = useCallback(() => {
     setLoading(true);
     setGenerationCount(prev => prev + 1);
+    
+    if (generateTimeoutRef.current) {
+        clearTimeout(generateTimeoutRef.current);
+    }
+
     // Simulate slight calculation delay for "heavy machinery" feel
-    setTimeout(() => {
+    generateTimeoutRef.current = setTimeout(() => {
         setColors(prev => {
             // 1. Identify Locked Colors to Keep
             const lockedColors = prev.slice(0, count).filter(c => c.locked);
