@@ -129,7 +129,9 @@ export const ColorCard: React.FC<{
   fullHeight?: boolean;
   resetTrigger?: number;
   disableShades?: boolean;
-}> = ({ color, onLock, onColorChange, fullHeight = false, resetTrigger, disableShades = false }) => {
+  squareCorners?: boolean;
+  bordered?: boolean;
+}> = ({ color, onLock, onColorChange, fullHeight = false, resetTrigger, disableShades = false, squareCorners = false, bordered = false }) => {
   const [copied, setCopied] = useState(false);
   const [showShades, setShowShades] = useState(false);
 
@@ -172,7 +174,7 @@ export const ColorCard: React.FC<{
 
   return (
     <div 
-      className={`relative group transition-all duration-500 ease-out overflow-hidden flex flex-col ${fullHeight ? 'h-full flex-1 min-h-[120px]' : 'h-64 w-full rounded-lg'}`}
+      className={`relative group transition-all duration-500 ease-out overflow-hidden flex flex-col ${squareCorners ? '' : 'rounded-lg'} ${fullHeight ? 'h-full flex-1 min-h-[120px]' : 'h-64 w-full'} ${bordered ? 'border border-white/10' : ''}`}
       style={{ backgroundColor: color.hex }}
     >
       {showShades && (
@@ -255,8 +257,8 @@ export const ColorCard: React.FC<{
         </div>
       </div>
 
-      {/* Vertical Japanese decorative text - Moved to bottom right */}
-      <div className="absolute bottom-4 right-2 text-white/10 font-bold writing-vertical-rl select-none pointer-events-none text-xs">
+      {/* Japanese decorative text */}
+      <div className="absolute bottom-3 right-3 text-white/10 font-bold select-none pointer-events-none text-xs text-right">
         カラーコード // {color.hex.replace('#', '')}
       </div>
     </div>

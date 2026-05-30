@@ -302,9 +302,9 @@ export const ColorWheel: React.FC = () => {
               max="90" 
               value={lightness} 
               onChange={(e) => setLightness(Number(e.target.value))}
-              className="w-full h-3 rounded-full appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-white/20 transition-all border border-white/10"
+              className="w-full h-3 rounded-full appearance-none bg-transparent cursor-pointer focus:outline-none focus:ring-1 focus:ring-white/20 transition-all"
               style={{
-                background: `linear-gradient(to right, hsl(${hue}, ${saturation}%, 10%), hsl(${hue}, ${saturation}%, 50%), hsl(${hue}, ${saturation}%, 90%))`
+                backgroundImage: `linear-gradient(to right, hsl(${hue}, ${saturation}%, 10%), hsl(${hue}, ${saturation}%, 50%), hsl(${hue}, ${saturation}%, 90%))`
               }}
             />
             <style>{`
@@ -362,7 +362,7 @@ export const ColorWheel: React.FC = () => {
         {/* Right: Results */}
         <div className="w-full md:w-1/2 bg-black/50 overflow-y-auto p-4 md:p-8 custom-scrollbar">
            <h3 className="text-xl font-bold mb-6 text-white flex items-center gap-2">
-             <span className="w-2 h-6 bg-chroma-yellow block"></span>
+             <span className="w-1 h-8 bg-gradient-to-b from-chroma-yellow to-chroma-accent block"></span>
              GENERATED HARMONY
            </h3>
            

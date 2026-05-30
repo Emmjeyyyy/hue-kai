@@ -361,7 +361,7 @@ export const Generator: React.FC = () => {
         </div>
 
         {/* Color Columns */}
-        <div className="flex-1 flex flex-col md:flex-row w-full overflow-hidden relative pb-4">
+        <div className="flex-1 flex flex-col md:flex-row w-full overflow-hidden relative">
           {colors.map((color, index) => (
             <div 
                 key={index} 
@@ -374,6 +374,7 @@ export const Generator: React.FC = () => {
                  onColorChange={(newColor) => handleColorChange(index, newColor)}
                  fullHeight
                  resetTrigger={generationCount}
+                 squareCorners
                />
             </div>
           ))}

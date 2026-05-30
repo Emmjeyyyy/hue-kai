@@ -17,7 +17,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(26,26,46,0.5),rgba(5,5,5,1))]"></div>
         <div className="absolute inset-0 scanlines opacity-20"></div>
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-chroma-yellow via-chroma-accent to-chroma-cyan opacity-80"></div>
       </div>
 
       {/* Header */}
@@ -36,7 +35,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 key={item.path}
                 to={item.path}
                 className={({ isActive }) => `
-                  relative px-6 py-2 group overflow-hidden transition-all duration-300
+                  relative w-36 flex justify-center py-2 group overflow-hidden transition-all duration-300
                   ${isActive ? 'text-chroma-yellow' : 'text-gray-400 hover:text-white'}
                 `}
               >

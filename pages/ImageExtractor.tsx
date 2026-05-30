@@ -291,7 +291,9 @@ export const ImageExtractor: React.FC = () => {
 
   return (
     <Layout>
-      <div className="p-4 md:p-8 flex flex-col min-h-full w-full pb-20 md:pb-12 max-w-[1600px] mx-auto">
+      {/* Solid black background for Extractor page */}
+      <div className="fixed inset-0 bg-chroma-black z-[-1]" />
+      <div className="p-4 md:p-8 flex flex-col min-h-full w-full pb-32 md:pb-40 max-w-[1600px] mx-auto relative z-10">
         <canvas ref={canvasRef} className="hidden" />
         
         {/* Title / Intro */}
@@ -418,14 +420,14 @@ export const ImageExtractor: React.FC = () => {
                         </div>
 
                         {/* Grid */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6 pb-20">
                             {palette.map((color, i) => (
                                 <div 
                                     key={`${i}-${color.hex}`} 
                                     className="animate-fadeIn opacity-0 fill-mode-forwards h-64 md:h-80" 
                                     style={{ animationDelay: `${i * 100}ms`, animationName: 'fadeIn' }}
                                 >
-                                    <ColorCard color={color} fullHeight disableShades />
+                                    <ColorCard color={color} fullHeight disableShades bordered />
                                 </div>
                             ))}
                         </div>
