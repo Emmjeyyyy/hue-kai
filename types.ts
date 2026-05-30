@@ -58,4 +58,5 @@ export type PaletteMode =
   | 'midnight'
   | 'pastel-dream'
   | 'nature-landscape'
-  | 'earth-and-sky';
+  | 'earth-and-sky'
+  | 'woodland-safari';

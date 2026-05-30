@@ -446,7 +446,7 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
             'glass-neon', 'liquid-metal', 'forest-canopy', 'ocean-depths',
             'royal-gold', 'colorblind-safe', 'high-contrast', 'deep-space',
             'holographic', 'midnight', 'pastel-dream', 'nature-landscape',
-            'earth-and-sky'
+            'earth-and-sky', 'woodland-safari'
         ];
 
         // Logic:
@@ -654,6 +654,28 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
                         } else {
                             // Bold blue
                             safeAddColor(randomInt(205, 220), randomInt(50, 70), randomInt(40, 55));
+                        }
+                    }
+                    break;
+                }
+                case 'woodland-safari': {
+                    for (let i = 0; i < count; i++) {
+                        const r = Math.random();
+                        if (r < 0.2) {
+                            // Deep Forest Green
+                            safeAddColor(randomInt(70, 85), randomInt(75, 95), randomInt(5, 12));
+                        } else if (r < 0.4) {
+                            // Hampton (Light Sand)
+                            safeAddColor(randomInt(38, 48), randomInt(45, 65), randomInt(70, 85));
+                        } else if (r < 0.6) {
+                            // Lunar Green (Desaturated Dark Green)
+                            safeAddColor(randomInt(110, 130), randomInt(5, 15), randomInt(20, 30));
+                        } else if (r < 0.8) {
+                            // Gurkha (Khaki/Olive)
+                            safeAddColor(randomInt(40, 50), randomInt(12, 25), randomInt(50, 60));
+                        } else {
+                            // Sepia Skin (Rusty Brown)
+                            safeAddColor(randomInt(10, 25), randomInt(30, 45), randomInt(35, 50));
                         }
                     }
                     break;

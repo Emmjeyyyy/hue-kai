@@ -4,6 +4,7 @@ import { Layout } from '../components/Layout';
 import { ColorCard, CyberButton } from '../components/UI';
 import { createColorData, rgbToHex } from '../utils/colorUtils';
 import { ColorData } from '../types';
+import { validateImageFile } from '../utils/fileValidation';
 import { converter, differenceEuclidean } from 'culori';
 import { jsPDF } from "jspdf";
 import namer from 'color-namer';
@@ -24,7 +25,25 @@ export const ImageExtractor: React.FC = () => {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [showSources, setShowSources] = useState(false);
     const [hoveredColorHex, setHoveredColorHex] = useState<string | null>(null);
+    const [uploadError, setUploadError] = useState<string | null>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+
+    const handleFile = async (file: File) => {
+        setUploadError(null);
+        setIsAnalyzing(true);
+
+        const validation = await validateImageFile(file);
+        if (!validation.isValid) {
+            setUploadError(validation.error || 'Unknown validation error');
+            setIsAnalyzing(false);
+            return;
+        }
+
+        // Use URL.createObjectURL for better performance and memory efficiency instead of reading as Base64 DataURL
+        const objectUrl = URL.createObjectURL(file);
+        setImageSrc(objectUrl);
+        processImage(objectUrl);
+    };
 
     // Sync state to cache
     useEffect(() => { cachedImageSrc = imageSrc; }, [imageSrc]);
@@ -40,14 +59,7 @@ export const ImageExtractor: React.FC = () => {
                 if (item.type.startsWith('image/')) {
                     const file = item.getAsFile();
                     if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = (ev) => {
-                        if (ev.target?.result) {
-                            setImageSrc(ev.target.result as string);
-                            processImage(ev.target.result as string);
-                        }
-                    };
-                    reader.readAsDataURL(file);
+                    handleFile(file);
                     break;
                 }
             }
@@ -269,29 +281,17 @@ export const ImageExtractor: React.FC = () => {
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                if (ev.target?.result) {
-                    setImageSrc(ev.target.result as string);
-                    processImage(ev.target.result as string);
-                }
-            };
-            reader.readAsDataURL(file);
+            handleFile(file);
         }
+        // Reset input so the same file can be selected again if needed
+        e.target.value = '';
     };
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         const file = e.dataTransfer.files[0];
-        if (file && file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                if (ev.target?.result) {
-                    setImageSrc(ev.target.result as string);
-                    processImage(ev.target.result as string);
-                }
-            };
-            reader.readAsDataURL(file);
+        if (file) {
+            handleFile(file);
         }
     };
 
@@ -480,9 +480,16 @@ export const ImageExtractor: React.FC = () => {
                                         <ImageIcon size={32} className="text-gray-400 group-hover:text-chroma-accent transition-colors" />
                                     </div>
                                     <h3 className="text-xl font-bold mb-2 text-white group-hover:text-chroma-accent transition-colors">DRAG & DROP IMAGE</h3>
-                                    <p className="text-sm text-gray-500 font-mono mb-8 max-w-xs mx-auto">
+                                    <p className="text-sm text-gray-500 font-mono mb-6 max-w-xs mx-auto">
                                         SUPPORTED FORMATS: JPG, PNG, WEBP
                                     </p>
+                                    
+                                    {uploadError && (
+                                        <div className="mb-6 px-4 py-3 bg-red-900/30 border border-red-500/50 rounded-md text-red-200 text-sm font-mono flex flex-col items-center max-w-md text-center">
+                                            <span className="font-bold text-red-400 mb-1">SECURITY ALERT</span>
+                                            {uploadError}
+                                        </div>
+                                    )}
                                     <label className="cursor-pointer relative overflow-hidden group/btn">
                                         <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
                                         <div className="px-8 py-3 bg-chroma-violet border border-chroma-accent/50 text-chroma-accent font-mono font-bold tracking-wider hover:bg-chroma-accent hover:text-black transition-all shadow-[0_0_15px_rgba(255,0,255,0.2)] hover:shadow-[0_0_25px_rgba(255,0,255,0.6)] rounded-sm">
