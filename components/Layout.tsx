@@ -44,7 +44,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                   <span className="text-[10px] font-mono opacity-50 z-10">{item.sub}</span>
                 </div>
                 {/* Hover/Active Background */}
-                <div className={`absolute inset-0 bg-white/5 transform skew-x-12 transition-transform duration-300 ${location.pathname === item.path ? 'translate-y-0' : 'translate-y-full group-hover:translate-y-0'}`}></div>
+                <div className={`absolute inset-0 bg-white/5 transition-transform duration-300 ${location.pathname === item.path ? 'translate-y-0' : 'translate-y-full group-hover:translate-y-0'}`}></div>
                 {/* Active Indicator */}
                 {location.pathname === item.path && (
                   <div className="absolute bottom-0 left-0 w-full h-0.5 bg-chroma-yellow shadow-[0_0_10px_rgba(255,255,0,0.8)]"></div>
