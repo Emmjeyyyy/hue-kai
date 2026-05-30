@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, X, Loader2, Plus, Minus, Image as ImageIcon } from 'lucide-react';
+import { Upload, X, Loader2, Plus, Minus, Image as ImageIcon, Download } from 'lucide-react';
 import { Layout } from '../components/Layout';
-import { ColorCard } from '../components/UI';
+import { ColorCard, CyberButton } from '../components/UI';
 import { createColorData, rgbToHex } from '../utils/colorUtils';
 import { ColorData } from '../types';
 import { converter, differenceEuclidean } from 'culori';
+import { jsPDF } from "jspdf";
 
 const oklch = converter('oklch');
 const diff = differenceEuclidean('oklch');
@@ -215,6 +216,79 @@ export const ImageExtractor: React.FC = () => {
     });
   };
 
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Header
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.text("HUEKAI // PALETTE", 20, 25);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    const date = new Date().toLocaleDateString();
+    doc.text(`Generated on ${date}`, 20, 32);
+
+    const startY = 50;
+    const margin = 20;
+    const gutter = 10;
+    
+    // Layout Calculation
+    // We'll use 2 columns if count > 5 to save vertical space, otherwise 1 column for big bold cards
+    const useTwoColumns = palette.length > 5;
+    const colCount = useTwoColumns ? 2 : 1;
+    
+    const availableWidth = pageWidth - (margin * 2) - ((colCount - 1) * gutter);
+    const cardWidth = availableWidth / colCount;
+    const rowGap = 10;
+    
+    const rowCount = Math.ceil(palette.length / colCount);
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const maxAvailableHeight = pageHeight - startY - margin;
+    
+    let cardHeight = useTwoColumns ? 35 : 50;
+    if (rowCount * cardHeight + (rowCount - 1) * rowGap > maxAvailableHeight) {
+        cardHeight = (maxAvailableHeight - (rowCount - 1) * rowGap) / rowCount;
+    }
+
+    palette.forEach((color, i) => {
+        const colIndex = i % colCount;
+        const rowIndex = Math.floor(i / colCount);
+        
+        const x = margin + (colIndex * (cardWidth + gutter));
+        const y = startY + (rowIndex * (cardHeight + rowGap));
+        
+        // Color Box
+        doc.setFillColor(color.hex);
+        doc.rect(x, y, cardWidth, cardHeight, "F");
+        
+        // White overlay for text area at the bottom of the card
+        const textAreaHeight = useTwoColumns ? 12 : 16;
+        doc.setFillColor(255, 255, 255);
+        doc.rect(x, y + cardHeight - textAreaHeight, cardWidth, textAreaHeight, "F");
+        
+        // Text
+        doc.setTextColor(0);
+        doc.setFont("courier", "bold");
+        doc.setFontSize(useTwoColumns ? 10 : 12);
+        
+        // Hex Code
+        doc.text(color.hex, x + 5, y + cardHeight - textAreaHeight + (useTwoColumns ? 8 : 11));
+        
+        // RGB (Right aligned)
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(useTwoColumns ? 8 : 9);
+        doc.setTextColor(80);
+        const rgbText = `RGB: ${color.rgb}`;
+        const rgbWidth = doc.getTextWidth(rgbText);
+        doc.text(rgbText, x + cardWidth - rgbWidth - 5, y + cardHeight - textAreaHeight + (useTwoColumns ? 8 : 11));
+    });
+    
+    doc.save("huekai-palette.pdf");
+  };
+
   return (
     <Layout>
       <div className="p-4 md:p-8 flex flex-col min-h-full w-full pb-20 md:pb-12 max-w-[1600px] mx-auto">
@@ -295,26 +369,45 @@ export const ImageExtractor: React.FC = () => {
                                 </h2>
                             </div>
                             
-                            {allCandidates.length > 0 && !isAnalyzing && (
-                                <div className="flex items-center gap-4 bg-black/40 backdrop-blur rounded-full px-4 py-2 border border-white/10">
-                                    <span className="text-xs font-mono text-gray-500 uppercase tracking-widest mr-2">Color Count</span>
-                                    <button 
-                                        onClick={() => adjustCount(-1)}
-                                        disabled={colorCount <= 2}
-                                        className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/20 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95"
+                            <div className="flex items-center gap-2 md:gap-4 bg-black/60 backdrop-blur-md px-4 py-3 rounded-full border border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+                                {allCandidates.length > 0 && !isAnalyzing && (
+                                    <>
+                                        <span className="text-xs font-mono text-gray-500 uppercase tracking-widest pl-2 hidden sm:inline">Color Count</span>
+                                        <div className="flex items-center gap-2 md:gap-3 border-r border-white/10 pr-4">
+                                            <CyberButton 
+                                                onClick={() => adjustCount(-1)}
+                                                disabled={colorCount <= 2}
+                                                className="w-8 h-8 p-0 flex items-center justify-center rounded-full -translate-y-[3px]"
+                                                variant="dark"
+                                            >
+                                                <Minus size={14} />
+                                            </CyberButton>
+                                            <span className="font-mono font-bold text-lg w-6 text-center bg-[linear-gradient(90deg,#FFFF00,#FFB347,#FF6961,#FF69B4,#DA70D6,#FFFF00)] bg-[length:200%_auto] animate-gradient-flow bg-clip-text text-transparent drop-shadow-[0_0_5px_rgba(255,255,255,0.4)]">
+                                                {colorCount}
+                                            </span>
+                                            <CyberButton 
+                                                onClick={() => adjustCount(1)}
+                                                disabled={colorCount >= maxAvailable}
+                                                className="w-8 h-8 p-0 flex items-center justify-center rounded-full -translate-y-[3px]"
+                                                variant="dark"
+                                            >
+                                                <Plus size={14} />
+                                            </CyberButton>
+                                        </div>
+                                    </>
+                                )}
+                                
+                                {palette.length > 0 && !isAnalyzing && (
+                                    <CyberButton 
+                                        onClick={exportToPDF}
+                                        className="w-10 h-10 p-0 flex items-center justify-center rounded-full -translate-y-[3px] border border-white/10 text-gray-400 hover:text-white"
+                                        variant="dark"
+                                        title="Export to PDF"
                                     >
-                                        <Minus size={14} />
-                                    </button>
-                                    <span className="font-mono text-lg font-bold w-6 text-center text-chroma-cyan">{colorCount}</span>
-                                    <button 
-                                        onClick={() => adjustCount(1)}
-                                        disabled={colorCount >= maxAvailable}
-                                        className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/20 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95"
-                                    >
-                                        <Plus size={14} />
-                                    </button>
-                                </div>
-                            )}
+                                        <Download size={18} />
+                                    </CyberButton>
+                                )}
+                            </div>
                             
                             {isAnalyzing && (
                                 <div className="flex items-center gap-2 text-chroma-cyan font-mono text-sm animate-pulse">
@@ -332,7 +425,7 @@ export const ImageExtractor: React.FC = () => {
                                     className="animate-fadeIn opacity-0 fill-mode-forwards h-64 md:h-80" 
                                     style={{ animationDelay: `${i * 100}ms`, animationName: 'fadeIn' }}
                                 >
-                                    <ColorCard color={color} fullHeight />
+                                    <ColorCard color={color} fullHeight disableShades />
                                 </div>
                             ))}
                         </div>

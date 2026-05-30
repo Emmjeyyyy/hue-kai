@@ -210,14 +210,22 @@ export const Generator: React.FC = () => {
     const gutter = 10;
     
     // Layout Calculation
-    // We'll use 2 columns if count > 6 to save vertical space, otherwise 1 column for big bold cards
+    // We'll use 2 columns if count > 5 to save vertical space, otherwise 1 column for big bold cards
     const useTwoColumns = colors.length > 5;
     const colCount = useTwoColumns ? 2 : 1;
     
     const availableWidth = pageWidth - (margin * 2) - ((colCount - 1) * gutter);
     const cardWidth = availableWidth / colCount;
-    const cardHeight = useTwoColumns ? 35 : 50;
     const rowGap = 10;
+    
+    const rowCount = Math.ceil(colors.length / colCount);
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const maxAvailableHeight = pageHeight - startY - margin;
+    
+    let cardHeight = useTwoColumns ? 35 : 50;
+    if (rowCount * cardHeight + (rowCount - 1) * rowGap > maxAvailableHeight) {
+        cardHeight = (maxAvailableHeight - (rowCount - 1) * rowGap) / rowCount;
+    }
 
     colors.forEach((color, i) => {
         const colIndex = i % colCount;

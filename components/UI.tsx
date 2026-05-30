@@ -10,7 +10,8 @@ export const CyberButton: React.FC<{
   variant?: 'primary' | 'secondary' | 'danger' | 'dark';
   pressed?: boolean;
   disabled?: boolean;
-}> = ({ onClick, children, className = '', variant = 'primary', pressed = false, disabled = false }) => {
+  title?: string;
+}> = ({ onClick, children, className = '', variant = 'primary', pressed = false, disabled = false, title }) => {
   
   // REFACTOR NOTE:
   // We have moved the inner content (text/icon) movement logic from the parent's CSS (using [&>span])
@@ -113,6 +114,7 @@ export const CyberButton: React.FC<{
     <button 
       onClick={onClick}
       disabled={disabled}
+      title={title}
       className={`${baseStyle} ${variants[variant]} ${pressed ? pressedStyles[variant] : ''} px-8 py-3 ${className}`}
     >
       <span className={contentClasses}>{children}</span>
@@ -126,7 +128,8 @@ export const ColorCard: React.FC<{
   onColorChange?: (newColor: ColorData) => void;
   fullHeight?: boolean;
   resetTrigger?: number;
-}> = ({ color, onLock, onColorChange, fullHeight = false, resetTrigger }) => {
+  disableShades?: boolean;
+}> = ({ color, onLock, onColorChange, fullHeight = false, resetTrigger, disableShades = false }) => {
   const [copied, setCopied] = useState(false);
   const [showShades, setShowShades] = useState(false);
 
@@ -207,8 +210,7 @@ export const ColorCard: React.FC<{
         </div>
       )}
 
-      {/* Shine effect */}
-      <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+
       
       {/* Content Container - Info at Top */}
       <div className={`p-4 backdrop-blur-md bg-black/40 border-b border-white/10 transition-transform duration-300`}>
@@ -241,12 +243,14 @@ export const ColorCard: React.FC<{
             >
                <Copy size={20} />
             </button>
-            <button 
-              onClick={(e) => { e.stopPropagation(); setShowShades(!showShades); }}
-              className="text-white/70 hover:text-white hover:scale-110 transition-all active:scale-95"
-            >
-               <Blend size={20} />
-            </button>
+            {!disableShades && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); setShowShades(!showShades); }}
+                className="text-white/70 hover:text-white hover:scale-110 transition-all active:scale-95"
+              >
+                 <Blend size={20} />
+              </button>
+            )}
           </div>
         </div>
       </div>
