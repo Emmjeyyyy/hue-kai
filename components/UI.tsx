@@ -215,11 +215,11 @@ export const ColorCard: React.FC<{
 
       
       {/* Content Container - Info at Top */}
-      <div className={`p-4 backdrop-blur-md bg-black/40 border-b border-white/10 transition-transform duration-300`}>
+      <div className={`relative p-4 bg-black/50 border-b border-white/10 group/card`}>
         <div className="flex justify-between items-start">
           <div className="flex flex-col gap-1">
             <span 
-              className="font-mono text-2xl font-bold tracking-widest text-white cursor-pointer hover:text-chroma-yellow transition-colors drop-shadow-md"
+              className="font-mono text-2xl font-bold tracking-widest text-white cursor-pointer group-hover/card:text-chroma-yellow [text-shadow:0_2px_4px_rgba(0,0,0,0.5)]"
               onClick={handleCopy}
             >
               {copied ? <span className="text-green-400 flex items-center gap-1"><Check size={20}/> COPIED</span> : color.hex}

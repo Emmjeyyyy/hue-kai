@@ -5,6 +5,7 @@ export interface ColorData {
   cmyk: string;
   locked: boolean;
   name?: string;
+  source?: { rx: number; ry: number };
 }
 
 export interface RGB {

@@ -306,7 +306,7 @@ export const Generator: React.FC = () => {
                 <div className="relative" ref={filterRef}>
                     <CyberButton
                          onClick={() => setIsFilterOpen(!isFilterOpen)}
-                         className={`w-10 h-10 p-0 flex items-center justify-center rounded-full -translate-y-[3px] border ${isFilterOpen ? 'border-chroma-cyan text-chroma-cyan hover:text-chroma-cyan' : 'border-transparent text-gray-400'}`}
+                         className={`w-10 h-10 p-0 flex items-center justify-center rounded-full -translate-y-[3px] ${isFilterOpen ? 'after:!border-chroma-cyan text-chroma-cyan hover:text-chroma-cyan' : 'text-gray-400'}`}
                          variant="dark"
                          pressed={isFilterOpen}
                     >
@@ -365,10 +365,6 @@ export const Generator: React.FC = () => {
                         <Plus size={14} />
                     </CyberButton>
                 </div>
-
-                <span className="hidden lg:flex items-center justify-center text-xs font-mono text-gray-400 tracking-widest uppercase h-full pt-1 whitespace-nowrap">
-                    PRESS SPACEBAR
-                </span>
                 
                 <CyberButton 
                     onClick={() => generate()} 
@@ -382,7 +378,7 @@ export const Generator: React.FC = () => {
                 {/* Export Button */}
                 <CyberButton 
                     onClick={exportToPDF}
-                    className="w-10 h-10 p-0 flex items-center justify-center rounded-full -translate-y-[3px] border border-white/10 text-gray-400 hover:text-white"
+                    className="w-10 h-10 p-0 flex items-center justify-center rounded-full -translate-y-[3px] text-gray-400 hover:text-white"
                     variant="dark"
                 >
                     <Download size={18} />

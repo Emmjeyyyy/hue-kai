@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, X, Loader2, Plus, Minus, Image as ImageIcon, Download } from 'lucide-react';
+import { Upload, X, Loader2, Plus, Minus, Image as ImageIcon, Download, Eye, EyeOff } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { ColorCard, CyberButton } from '../components/UI';
 import { createColorData, rgbToHex } from '../utils/colorUtils';
@@ -10,13 +10,25 @@ import { jsPDF } from "jspdf";
 const oklch = converter('oklch');
 const diff = differenceEuclidean('oklch');
 
+// Cache variables to preserve state when component unmounts (changing tabs)
+let cachedImageSrc: string | null = null;
+let cachedAllCandidates: ColorData[] = [];
+let cachedColorCount: number = 5;
+
 export const ImageExtractor: React.FC = () => {
-    const [imageSrc, setImageSrc] = useState<string | null>(null);
+    const [imageSrc, setImageSrc] = useState<string | null>(cachedImageSrc);
     const [palette, setPalette] = useState<ColorData[]>([]);
-    const [allCandidates, setAllCandidates] = useState<ColorData[]>([]);
-    const [colorCount, setColorCount] = useState(5);
+    const [allCandidates, setAllCandidates] = useState<ColorData[]>(cachedAllCandidates);
+    const [colorCount, setColorCount] = useState(cachedColorCount);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [showSources, setShowSources] = useState(false);
+    const [hoveredColorHex, setHoveredColorHex] = useState<string | null>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+
+    // Sync state to cache
+    useEffect(() => { cachedImageSrc = imageSrc; }, [imageSrc]);
+    useEffect(() => { cachedAllCandidates = allCandidates; }, [allCandidates]);
+    useEffect(() => { cachedColorCount = colorCount; }, [colorCount]);
 
     // Update palette whenever the count or candidates change
     useEffect(() => {
@@ -29,18 +41,19 @@ export const ImageExtractor: React.FC = () => {
 
     const processImage = (src: string) => {
         setIsAnalyzing(true);
+        setShowSources(false); // Reset labels toggle for new image
 
         const img = new Image();
         img.crossOrigin = "Anonymous";
         img.src = src;
         img.onload = () => {
-            const canvas = canvasRef.current;
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
             if (!ctx) return;
 
-            // Resize for performance (keep max dimension manageable)
-            const maxDim = 150;
+            // Reduce image size for performance while keeping enough detail
+            // Bumped to 300 for higher physical coordinate accuracy
+            const maxDim = 300;
             const scale = Math.min(maxDim / img.width, maxDim / img.height);
             canvas.width = img.width * scale;
             canvas.height = img.height * scale;
@@ -53,7 +66,7 @@ export const ImageExtractor: React.FC = () => {
             // 1. Initial Quantization (RGB Binning)
             // Group similar colors into small buckets to reduce processing load
             const quantizeSize = 10;
-            const bins = new Map<string, { r: number, g: number, b: number, count: number }>();
+            const bins = new Map<string, { r: number, g: number, b: number, count: number, sumX: number, sumY: number, pixels: {x: number, y: number}[] }>();
 
             for (let i = 0; i < imageData.length; i += 4) {
                 // Skip Transparent
@@ -62,6 +75,11 @@ export const ImageExtractor: React.FC = () => {
                 const r = imageData[i];
                 const g = imageData[i + 1];
                 const b = imageData[i + 2];
+
+                // Pixel coordinates
+                const pixelIndex = i / 4;
+                const px = pixelIndex % canvas.width;
+                const py = Math.floor(pixelIndex / canvas.width);
 
                 // Quantize
                 const rQ = Math.round(r / quantizeSize) * quantizeSize;
@@ -74,9 +92,12 @@ export const ImageExtractor: React.FC = () => {
                     bin.r += r;
                     bin.g += g;
                     bin.b += b;
+                    bin.sumX += px;
+                    bin.sumY += py;
+                    bin.pixels.push({x: px, y: py});
                     bin.count++;
                 } else {
-                    bins.set(key, { r, g, b, count: 1 });
+                    bins.set(key, { r, g, b, count: 1, sumX: px, sumY: py, pixels: [{x: px, y: py}] });
                 }
             }
 
@@ -87,6 +108,7 @@ export const ImageExtractor: React.FC = () => {
                 const g = Math.round(bin.g / bin.count);
                 const b = Math.round(bin.b / bin.count);
 
+                const avgX = bin.sumX / bin.count;
                 const hex = rgbToHex(r, g, b);
                 // Culori takes 0-1 range for RGB
                 const colorObj = { mode: 'rgb', r: r / 255, g: g / 255, b: b / 255 };
@@ -96,7 +118,8 @@ export const ImageExtractor: React.FC = () => {
                     hex,
                     r, g, b,
                     ok,
-                    count: bin.count
+                    count: bin.count,
+                    pixels: bin.pixels
                 };
             });
 
@@ -113,6 +136,9 @@ export const ImageExtractor: React.FC = () => {
                     const d = diff(c.ok, m.ok);
                     if (d < mergeThreshold) {
                         m.count += c.count;
+                        for (let i = 0; i < c.pixels.length; i++) {
+                            m.pixels.push(c.pixels[i]);
+                        }
                         // Keep the dominant color as the representative
                         absorbed = true;
                         break;
@@ -159,13 +185,49 @@ export const ImageExtractor: React.FC = () => {
                     }
                 }
                 if (!tooClose) {
-                    finalCandidates.push(c);
+                    let bestPx = c.pixels[0];
+                    let maxDensity = -1;
+                    
+                    // Sample up to 100 pixels to find the densest area
+                    const sampleSize = Math.min(100, c.pixels.length);
+                    const step = Math.max(1, Math.floor(c.pixels.length / sampleSize));
+                    const searchRadiusSq = 10 * 10;
+                    
+                    for (let i = 0; i < c.pixels.length; i += step) {
+                        const candidate = c.pixels[i];
+                        let density = 0;
+                        const innerStep = Math.max(1, Math.floor(c.pixels.length / 500));
+                        for (let j = 0; j < c.pixels.length; j += innerStep) {
+                            const p = c.pixels[j];
+                            const dx = p.x - candidate.x;
+                            const dy = p.y - candidate.y;
+                            if (dx * dx + dy * dy < searchRadiusSq) {
+                                density++;
+                            }
+                        }
+                        
+                        if (density > maxDensity) {
+                            maxDensity = density;
+                            bestPx = candidate;
+                        }
+                    }
+                    
+                    const rx = bestPx.x / canvas.width;
+                    const ry = bestPx.y / canvas.height;
+
+                    finalCandidates.push({
+                        ...c,
+                        source: { rx, ry }
+                    });
                 }
                 if (finalCandidates.length >= 20) break;
             }
 
             // Convert to app ColorData format
-            const extracted: ColorData[] = finalCandidates.map(c => createColorData(c.hex));
+            const extracted: ColorData[] = finalCandidates.map(c => ({
+                ...createColorData(c.hex),
+                source: c.source
+            }));
 
             setAllCandidates(extracted);
 
@@ -321,8 +383,47 @@ export const ImageExtractor: React.FC = () => {
                         >
                             {imageSrc ? (
                                 <>
-                                    <div className="relative w-full h-full flex items-center justify-center p-8">
-                                        <img src={imageSrc} alt="Analysis Target" className="max-w-full max-h-[600px] object-contain shadow-lg rounded-lg" />
+                                    <div className="relative w-full h-full flex items-center justify-center p-8 overflow-hidden">
+                                        <div className="relative inline-block leading-none">
+                                            <img src={imageSrc} alt="Analysis Target" className="max-w-full max-h-[600px] object-contain shadow-lg rounded-lg block" />
+                                            {showSources && palette.map(color => {
+                                                if (!color.source) return null;
+                                                const isHovered = hoveredColorHex === color.hex;
+                                                const isOtherHovered = hoveredColorHex && hoveredColorHex !== color.hex;
+                                                
+                                                return (
+                                                    <div
+                                                        key={color.hex}
+                                                        className={`absolute w-0 h-0 z-40 transition-all duration-300 ${
+                                                            isOtherHovered ? 'opacity-20 scale-75' : 
+                                                            isHovered ? 'opacity-100 scale-125 z-50' : 
+                                                            'opacity-100 scale-100'
+                                                        }`}
+                                                        style={{
+                                                            left: `${color.source.rx * 100}%`,
+                                                            top: `${color.source.ry * 100}%`,
+                                                        }}
+                                                    >
+                                                        {/* Map Pin */}
+                                                        <div 
+                                                            className="absolute bottom-0 right-0 w-7 h-7 bg-[#111] rounded-full rounded-br-none rotate-45 origin-bottom-right flex items-center justify-center transition-all cursor-pointer hover:opacity-100"
+                                                            style={{
+                                                                boxShadow: isHovered ? `0 0 20px ${color.hex}` : 'none',
+                                                                border: isHovered ? '2px solid white' : '2px solid #333'
+                                                            }}
+                                                            onMouseEnter={() => setHoveredColorHex(color.hex)}
+                                                            onMouseLeave={() => setHoveredColorHex(null)}
+                                                        >
+                                                            {/* Inner Color */}
+                                                            <div 
+                                                                className="w-5 h-5 rounded-full border border-black/50"
+                                                                style={{ backgroundColor: color.hex }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
 
                                     <button
@@ -363,60 +464,73 @@ export const ImageExtractor: React.FC = () => {
                         {palette.length > 0 && (
                             <>
                                 {/* Controls Bar for Results */}
-                                <div className="flex flex-col md:flex-row items-center justify-between border-b border-white/10 pb-6 mb-8 gap-4">
-                                    <div className="flex items-center gap-3">
+                                <div className="flex flex-col md:flex-row items-center border-b border-white/10 pb-6 mb-8 gap-4">
+                                    <div className="flex items-center gap-3 md:w-1/3">
                                         <div className="w-1 h-8 bg-gradient-to-b from-chroma-yellow to-chroma-accent"></div>
                                         <h2 className="text-2xl font-bold tracking-wide">
                                             EXTRACTED PALETTE
                                         </h2>
                                     </div>
 
-                                    <div className="flex items-center gap-2 md:gap-4 bg-black/60 backdrop-blur-md px-4 py-3 rounded-full border border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
-                                        {allCandidates.length > 0 && !isAnalyzing && (
-                                            <>
-                                                <span className="text-xs font-mono text-gray-500 uppercase tracking-widest pl-2 hidden sm:inline">Color Count</span>
-                                                <div className="flex items-center gap-2 md:gap-3 border-r border-white/10 pr-4">
-                                                    <CyberButton
-                                                        onClick={() => adjustCount(-1)}
-                                                        disabled={colorCount <= 2}
-                                                        className="w-8 h-8 p-0 flex items-center justify-center rounded-full -translate-y-[3px]"
-                                                        variant="dark"
-                                                    >
-                                                        <Minus size={14} />
-                                                    </CyberButton>
-                                                    <span className="font-mono font-bold text-lg w-6 text-center bg-[linear-gradient(90deg,#FFFF00,#FFB347,#FF6961,#FF69B4,#DA70D6,#FFFF00)] bg-[length:200%_auto] animate-gradient-flow bg-clip-text text-transparent drop-shadow-[0_0_5px_rgba(255,255,255,0.4)]">
-                                                        {colorCount}
-                                                    </span>
-                                                    <CyberButton
-                                                        onClick={() => adjustCount(1)}
-                                                        disabled={colorCount >= maxAvailable}
-                                                        className="w-8 h-8 p-0 flex items-center justify-center rounded-full -translate-y-[3px]"
-                                                        variant="dark"
-                                                    >
-                                                        <Plus size={14} />
-                                                    </CyberButton>
-                                                </div>
-                                            </>
-                                        )}
+                                    <div className="flex justify-center md:w-1/3">
+                                        {!isAnalyzing ? (
+                                            <div className="flex items-center gap-2 md:gap-4 bg-black/60 backdrop-blur-md px-4 py-3 rounded-full border border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+                                                {allCandidates.length > 0 && (
+                                                    <>
+                                                        <div className="flex items-center gap-2 md:gap-3 border-r border-white/10 pr-4">
+                                                            <CyberButton
+                                                                onClick={() => adjustCount(-1)}
+                                                                disabled={colorCount <= 2}
+                                                                className="w-8 h-8 p-0 flex items-center justify-center rounded-full -translate-y-[3px]"
+                                                                variant="dark"
+                                                            >
+                                                                <Minus size={14} />
+                                                            </CyberButton>
+                                                            <span className="font-mono font-bold text-lg w-6 text-center bg-[linear-gradient(90deg,#FFFF00,#FFB347,#FF6961,#FF69B4,#DA70D6,#FFFF00)] bg-[length:200%_auto] animate-gradient-flow bg-clip-text text-transparent drop-shadow-[0_0_5px_rgba(255,255,255,0.4)]">
+                                                                {colorCount}
+                                                            </span>
+                                                            <CyberButton
+                                                                onClick={() => adjustCount(1)}
+                                                                disabled={colorCount >= maxAvailable}
+                                                                className="w-8 h-8 p-0 flex items-center justify-center rounded-full -translate-y-[3px]"
+                                                                variant="dark"
+                                                            >
+                                                                <Plus size={14} />
+                                                            </CyberButton>
+                                                        </div>
+                                                    </>
+                                                )}
 
-                                        {palette.length > 0 && !isAnalyzing && (
-                                            <CyberButton
-                                                onClick={exportToPDF}
-                                                className="w-10 h-10 p-0 flex items-center justify-center rounded-full -translate-y-[3px] border border-white/10 text-gray-400 hover:text-white"
-                                                variant="dark"
-                                                title="Export to PDF"
-                                            >
-                                                <Download size={18} />
-                                            </CyberButton>
+                                                {palette.length > 0 && (
+                                                    <div className="flex items-center gap-2">
+                                                        <CyberButton
+                                                            onClick={() => setShowSources(!showSources)}
+                                                            className={`w-10 h-10 p-0 flex items-center justify-center rounded-full -translate-y-[3px] transition-colors ${showSources ? 'after:!border-chroma-cyan !text-chroma-cyan hover:!text-chroma-cyan' : 'text-gray-400 hover:text-white'}`}
+                                                            variant="dark"
+                                                            title="Toggle Source Markers"
+                                                            pressed={showSources}
+                                                        >
+                                                            <Eye size={18} />
+                                                        </CyberButton>
+                                                        <CyberButton
+                                                            onClick={exportToPDF}
+                                                            className="w-10 h-10 p-0 flex items-center justify-center rounded-full -translate-y-[3px] text-gray-400 hover:text-white"
+                                                            variant="dark"
+                                                            title="Export to PDF"
+                                                        >
+                                                            <Download size={18} />
+                                                        </CyberButton>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center justify-center gap-2 text-chroma-cyan font-mono text-sm animate-pulse w-full">
+                                                <Loader2 className="animate-spin" size={16} />
+                                                PROCESSING_DATA...
+                                            </div>
                                         )}
                                     </div>
-
-                                    {isAnalyzing && (
-                                        <div className="flex items-center gap-2 text-chroma-cyan font-mono text-sm animate-pulse">
-                                            <Loader2 className="animate-spin" size={16} />
-                                            PROCESSING_DATA...
-                                        </div>
-                                    )}
+                                    <div className="hidden md:block md:w-1/3"></div>
                                 </div>
 
                                 {/* Grid */}
@@ -426,6 +540,8 @@ export const ImageExtractor: React.FC = () => {
                                             key={`${i}-${color.hex}`}
                                             className="animate-fadeIn opacity-0 fill-mode-forwards h-64 md:h-80"
                                             style={{ animationDelay: `${i * 100}ms`, animationName: 'fadeIn' }}
+                                            onMouseEnter={() => setHoveredColorHex(color.hex)}
+                                            onMouseLeave={() => setHoveredColorHex(null)}
                                         >
                                             <ColorCard color={color} fullHeight disableShades bordered />
                                         </div>
