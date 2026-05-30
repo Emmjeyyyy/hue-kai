@@ -29,6 +29,21 @@ const ALL_MODES: { value: PaletteMode; label: string }[] = [
     { value: 'tetradic', label: 'Tetradic' },
     { value: 'compound', label: 'Compound' },
     { value: 'shades', label: 'Shades' },
+    { value: 'vaporwave', label: 'Vaporwave' },
+    { value: 'synthwave', label: 'Synthwave' },
+    { value: 'aurora', label: 'Aurora' },
+    { value: 'neo-brutalist', label: 'Neo-Brutalist' },
+    { value: 'glass-neon', label: 'Glass Neon' },
+    { value: 'liquid-metal', label: 'Liquid Metal' },
+    { value: 'forest-canopy', label: 'Forest Canopy' },
+    { value: 'ocean-depths', label: 'Ocean Depths' },
+    { value: 'royal-gold', label: 'Royal Gold' },
+    { value: 'colorblind-safe', label: 'Colorblind Safe' },
+    { value: 'high-contrast', label: 'High Contrast' },
+    { value: 'deep-space', label: 'Deep Space' },
+    { value: 'holographic', label: 'Holographic' },
+    { value: 'midnight', label: 'Midnight' },
+    { value: 'pastel-dream', label: 'Pastel Dream' },
 ];
 
 let cachedColors: ColorData[] = [];
@@ -113,15 +128,24 @@ export const Generator: React.FC = () => {
 
             // 4. Generate New Colors
             let generatedPalette = generatePalette(selectedMode, count);
-            const newColors = generatedPalette.slice(0, needed);
+            let newColors = generatedPalette.slice(0, needed);
             
-            // 5. Combine Locked + New
-            const combined = [...lockedColors, ...newColors];
+            // Sort only the newly generated colors for visual coherence
+            newColors = sortColorsByVisualProgression(newColors);
             
-            // 6. Sort for Visual Coherence
-            const sorted = sortColorsByVisualProgression(combined);
+            // 5. Combine Locked + New while preserving exact positions
+            const combined: ColorData[] = new Array(count);
+            let newColorIndex = 0;
             
-            return sorted;
+            for (let i = 0; i < count; i++) {
+                if (prev[i] && prev[i].locked) {
+                    combined[i] = prev[i];
+                } else {
+                    combined[i] = newColors[newColorIndex++];
+                }
+            }
+            
+            return combined;
         });
         setLoading(false);
     }, 150);

@@ -442,10 +442,11 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
             'smooth-gradient', 'iridescent-flow', 'neon-maximalist',
             'obsidian-highlight', 'industrial-concrete',
             'bioluminescent', 'chaos-theory', 'synthwave', 'noir-accent',
-            'autumn-retro'
+            'autumn-retro', 'vaporwave', 'aurora', 'neo-brutalist',
+            'glass-neon', 'liquid-metal', 'forest-canopy', 'ocean-depths',
+            'royal-gold', 'colorblind-safe', 'high-contrast', 'deep-space',
+            'holographic', 'midnight', 'pastel-dream'
         ];
-
-        if (chance(0.1)) strategies.push('pastel-dream');
 
         // Logic:
         // If 'mode' is one of the specific advanced strategies, use it directly.
@@ -694,6 +695,130 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
                     while (palette.length < count && sf4 < 50) {
                         sf4++;
                         safeAddColor((baseH + randomInt(0, 60)) % 360, randomInt(30, 60), randomInt(30, 70));
+                    }
+                    break;
+                }
+                case 'vaporwave': {
+                    const vwHues = [300, 320, 340, 180, 200];
+                    for (let i = 0; i < count; i++) {
+                        const h = vwHues[randomInt(0, vwHues.length - 1)] + randomInt(-10, 10);
+                        safeAddColor(h, randomInt(60, 90), randomInt(65, 85));
+                    }
+                    break;
+                }
+                case 'aurora': {
+                    const startHue = randomInt(120, 240);
+                    const hueStep = randomInt(15, 30);
+                    for (let i = 0; i < count; i++) {
+                        safeAddColor((startHue + (i * hueStep)) % 360, randomInt(60, 90), randomInt(75, 90));
+                    }
+                    break;
+                }
+                case 'neo-brutalist': {
+                    const primaryHues = [0, 60, 120, 240];
+                    const h = primaryHues[randomInt(0, primaryHues.length - 1)];
+                    safeAddColor(h, 100, 50); // One loud primary
+                    safeAddColor(0, 0, 5); // Pitch black
+                    if (count > 2) safeAddColor(0, 0, 95); // Pure white
+                    let sf5 = 0;
+                    while (palette.length < count && sf5 < 50) {
+                        sf5++;
+                        const h2 = primaryHues[randomInt(0, primaryHues.length - 1)];
+                        safeAddColor(h2, randomInt(80, 100), randomInt(40, 60));
+                    }
+                    break;
+                }
+                case 'glass-neon': {
+                    const gnHues = [180, 280, 320];
+                    for (let i = 0; i < count; i++) {
+                        if (chance(0.2)) {
+                            safeAddColor(0, 0, randomInt(90, 100)); // white accent
+                        } else {
+                            const h = gnHues[randomInt(0, gnHues.length - 1)] + randomInt(-15, 15);
+                            safeAddColor(h, randomInt(70, 100), randomInt(75, 95));
+                        }
+                    }
+                    break;
+                }
+                case 'liquid-metal': {
+                    const metalHues = [210, 220, 230];
+                    const h = metalHues[randomInt(0, metalHues.length - 1)];
+                    for (let i = 0; i < count; i++) {
+                        safeAddColor(h, randomInt(0, 15), randomInt(15, 90));
+                    }
+                    break;
+                }
+                case 'forest-canopy': {
+                    const forestHues = [80, 100, 120, 140, 30]; // greens and brown
+                    for (let i = 0; i < count; i++) {
+                        const h = forestHues[randomInt(0, forestHues.length - 1)] + randomInt(-15, 15);
+                        const isBrown = h < 50;
+                        safeAddColor(h, randomInt(20, 50), isBrown ? randomInt(20, 40) : randomInt(20, 60));
+                    }
+                    break;
+                }
+                case 'ocean-depths': {
+                    for (let i = 0; i < count; i++) {
+                        const h = randomInt(190, 250);
+                        safeAddColor(h, randomInt(50, 90), randomInt(10, 50));
+                    }
+                    break;
+                }
+                case 'royal-gold': {
+                    safeAddColor(0, 0, randomInt(5, 15)); // rich black/charcoal
+                    safeAddColor(40, randomInt(60, 90), randomInt(60, 75)); // gold
+                    if (count > 2) safeAddColor(45, randomInt(20, 40), randomInt(85, 95)); // ivory/champagne
+                    let sf6 = 0;
+                    while (palette.length < count && sf6 < 50) {
+                        sf6++;
+                        if (chance(0.5)) safeAddColor(0, 0, randomInt(5, 25));
+                        else safeAddColor(randomInt(35, 50), randomInt(40, 90), randomInt(40, 80));
+                    }
+                    break;
+                }
+                case 'colorblind-safe': {
+                    // Wong's / Okabe-Ito inspired palette
+                    const safeHues = [210, 35, 200, 330, 80, 30, 260];
+                    let sf7 = 0;
+                    while (palette.length < count && sf7 < 50) {
+                        sf7++;
+                        const h = safeHues[sf7 % safeHues.length] + randomInt(-5, 5);
+                        safeAddColor(h, randomInt(60, 90), randomInt(40, 80));
+                    }
+                    break;
+                }
+                case 'high-contrast': {
+                    let isLight = chance(0.5);
+                    for (let i = 0; i < count; i++) {
+                        const h = (baseH + (i * 70)) % 360;
+                        safeAddColor(h, randomInt(50, 100), isLight ? randomInt(80, 95) : randomInt(10, 25));
+                        isLight = !isLight;
+                    }
+                    break;
+                }
+                case 'deep-space': {
+                    safeAddColor(240, randomInt(50, 80), randomInt(5, 15)); // deep navy background
+                    safeAddColor(280, randomInt(60, 90), randomInt(10, 20)); // cosmic purple
+                    let sf8 = 0;
+                    while (palette.length < count && sf8 < 50) {
+                        sf8++;
+                        const h = chance(0.5) ? randomInt(300, 330) : randomInt(180, 200); // magenta or cyan nebula
+                        safeAddColor(h, randomInt(80, 100), randomInt(50, 80));
+                    }
+                    break;
+                }
+                case 'holographic': {
+                    const holoHues = [180, 280, 320, 150]; // cyan, purple, pink, mint
+                    for (let i = 0; i < count; i++) {
+                        const h = holoHues[randomInt(0, holoHues.length - 1)] + randomInt(-10, 10);
+                        safeAddColor(h, randomInt(40, 80), randomInt(80, 95));
+                    }
+                    break;
+                }
+                case 'midnight': {
+                    safeAddColor(230, randomInt(30, 60), randomInt(5, 15)); // dark slate/navy
+                    for (let i = 1; i < count; i++) {
+                        safeAddColor(randomInt(200, 260), randomInt(10, 40), randomInt(5, 30));
                     }
                     break;
                 }

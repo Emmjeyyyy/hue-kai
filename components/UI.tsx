@@ -234,21 +234,21 @@ export const ColorCard: React.FC<{
              {onLock && (
               <button 
                 onClick={(e) => { e.stopPropagation(); onLock(); }}
-                className="text-white/70 hover:text-white hover:scale-110 transition-all active:scale-95"
+                className="text-white/70 hover:text-white hover:scale-110 transition-all active:scale-95 focus:outline-none"
               >
                 {color.locked ? <Lock size={20} className="text-chroma-accent drop-shadow-[0_0_5px_rgba(255,0,255,0.8)]" /> : <Unlock size={20} />}
               </button>
             )}
             <button 
               onClick={handleCopy}
-              className="text-white/70 hover:text-white hover:scale-110 transition-all active:scale-95"
+              className="text-white/70 hover:text-white hover:scale-110 transition-all active:scale-95 focus:outline-none"
             >
                <Copy size={20} />
             </button>
             {!disableShades && (
               <button 
                 onClick={(e) => { e.stopPropagation(); setShowShades(!showShades); }}
-                className="text-white/70 hover:text-white hover:scale-110 transition-all active:scale-95"
+                className="text-white/70 hover:text-white hover:scale-110 transition-all active:scale-95 focus:outline-none"
               >
                  <Blend size={20} />
               </button>
