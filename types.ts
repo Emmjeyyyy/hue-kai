@@ -57,4 +57,5 @@ export type PaletteMode =
   | 'holographic'
   | 'midnight'
   | 'pastel-dream'
-  | 'nature-landscape';
+  | 'nature-landscape'
+  | 'earth-and-sky';

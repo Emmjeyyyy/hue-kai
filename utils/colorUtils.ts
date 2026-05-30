@@ -445,7 +445,8 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
             'autumn-retro', 'vaporwave', 'aurora', 'neo-brutalist',
             'glass-neon', 'liquid-metal', 'forest-canopy', 'ocean-depths',
             'royal-gold', 'colorblind-safe', 'high-contrast', 'deep-space',
-            'holographic', 'midnight', 'pastel-dream', 'nature-landscape'
+            'holographic', 'midnight', 'pastel-dream', 'nature-landscape',
+            'earth-and-sky'
         ];
 
         // Logic:
@@ -631,6 +632,28 @@ export const generatePalette = (mode: PaletteMode, count: number = 5, baseColor?
                             const h = randomInt(210, 230);
                             const isLight = chance(0.5);
                             safeAddColor(h, randomInt(60, 90), isLight ? randomInt(60, 75) : randomInt(45, 60));
+                        }
+                    }
+                    break;
+                }
+                case 'earth-and-sky': {
+                    for (let i = 0; i < count; i++) {
+                        const r = Math.random();
+                        if (r < 0.2) {
+                            // Very dark warm black
+                            safeAddColor(randomInt(0, 15), randomInt(70, 90), randomInt(1, 5));
+                        } else if (r < 0.4) {
+                            // Dark warm brown
+                            safeAddColor(randomInt(25, 35), randomInt(20, 35), randomInt(10, 20));
+                        } else if (r < 0.6) {
+                            // Earthy golden brown
+                            safeAddColor(randomInt(30, 40), randomInt(30, 45), randomInt(30, 45));
+                        } else if (r < 0.8) {
+                            // Warm sand
+                            safeAddColor(randomInt(35, 45), randomInt(25, 40), randomInt(60, 75));
+                        } else {
+                            // Bold blue
+                            safeAddColor(randomInt(205, 220), randomInt(50, 70), randomInt(40, 55));
                         }
                     }
                     break;

@@ -45,6 +45,7 @@ const ALL_MODES: { value: PaletteMode; label: string }[] = [
     { value: 'midnight', label: 'Midnight' },
     { value: 'pastel-dream', label: 'Pastel Dream' },
     { value: 'nature-landscape', label: 'Nature Landscape' },
+    { value: 'earth-and-sky', label: 'Earth & Sky' },
 ];
 
 let cachedColors: ColorData[] = [];
