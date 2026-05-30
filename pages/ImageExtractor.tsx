@@ -30,6 +30,32 @@ export const ImageExtractor: React.FC = () => {
     useEffect(() => { cachedAllCandidates = allCandidates; }, [allCandidates]);
     useEffect(() => { cachedColorCount = colorCount; }, [colorCount]);
 
+    // Ctrl+V paste support
+    useEffect(() => {
+        const handlePaste = (e: ClipboardEvent) => {
+            const items = e.clipboardData?.items;
+            if (!items) return;
+            for (const item of Array.from(items)) {
+                if (item.type.startsWith('image/')) {
+                    const file = item.getAsFile();
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        if (ev.target?.result) {
+                            setImageSrc(ev.target.result as string);
+                            processImage(ev.target.result as string);
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                    break;
+                }
+            }
+        };
+        window.addEventListener('paste', handlePaste);
+        return () => window.removeEventListener('paste', handlePaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     // Update palette whenever the count or candidates change
     useEffect(() => {
         if (allCandidates.length > 0) {
