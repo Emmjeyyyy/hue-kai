@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Aperture, Palette, Image as ImageIcon } from 'lucide-react';
+import { Aperture, Palette, Image as ImageIcon, Layers } from 'lucide-react';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
@@ -9,6 +9,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { path: '/', label: 'GENERATOR', icon: Palette, sub: 'ジェネレーター' },
     { path: '/extract', label: 'EXTRACTOR', icon: ImageIcon, sub: 'エクストラクター' },
     { path: '/wheel', label: 'WHEEL', icon: Aperture, sub: 'ホイール' },
+    { path: '/gradient', label: 'GRADIENT', icon: Layers, sub: 'グラデーション' },
   ];
 
   return (

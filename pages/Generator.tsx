@@ -378,7 +378,7 @@ export const Generator: React.FC = () => {
                     >
                         <Minus size={14} />
                     </CyberButton>
-                    <span className="select-none font-mono font-bold text-lg w-6 text-center bg-[linear-gradient(90deg,#FFFF00,#FFB347,#FF6961,#FF69B4,#DA70D6,#FFFF00)] bg-[length:200%_auto] animate-gradient-flow bg-clip-text text-transparent drop-shadow-[0_0_5px_rgba(255,255,255,0.4)]">
+                    <span className="select-none font-mono font-bold text-lg w-6 text-center bg-[linear-gradient(90deg,#0B0F19,#0033FF,#00FFFF,#CCFF00,#FFFF00,#FFFFFF,#0B0F19)] bg-[length:600%_auto] animate-gradient-flow bg-clip-text text-transparent drop-shadow-[0_0_5px_rgba(255,255,255,0.4)]">
                         {count}
                     </span>
                     <CyberButton 
