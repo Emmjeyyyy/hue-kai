@@ -480,15 +480,25 @@ const StopRow: React.FC<{
       </div>
 
       {/* Hex display */}
-      <button
-        onClick={handleCopy}
-        className="font-mono text-sm text-white/70 hover:text-chroma-yellow transition-colors tracking-wider flex items-center gap-1.5 shrink-0 w-24"
-      >
-        {copied
-          ? <><Check size={12} className="text-green-400" /><span className="text-green-400 text-xs">COPIED</span></>
-          : <><Copy size={11} className="opacity-50" />{stop.hex}</>
-        }
-      </button>
+      <div className="font-mono text-sm text-white/70 tracking-wider flex items-center gap-1.5 shrink-0 w-24">
+        {copied ? (
+          <>
+            <Check size={12} className="text-green-400" />
+            <span className="text-green-400 text-xs select-none">COPIED</span>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={handleCopy}
+              className="text-white/50 hover:text-chroma-yellow hover:opacity-100 transition-colors flex items-center justify-center p-0.5"
+              title="Copy HEX"
+            >
+              <Copy size={11} />
+            </button>
+            <span className="select-text cursor-text">{stop.hex}</span>
+          </>
+        )}
+      </div>
 
       {/* Position slider */}
       <div className="flex-1 flex items-center gap-2 min-w-[80px] mr-1">
@@ -949,7 +959,7 @@ export const GradientMaker: React.FC = () => {
                           style={{ background: `linear-gradient(${preset.angle}deg, ${preset.stops.map(s => `${s.hex} ${s.position}%`).join(', ')})` }}
                         />
                         <div className="absolute inset-0 flex items-center justify-center bg-black/40 group-hover:bg-black/20 transition-colors">
-                          <span className="font-mono text-[9px] text-white/90 drop-shadow-[0_1px_3px_rgba(0,0,0,1)] tracking-widest uppercase">{preset.name}</span>
+                          <span className="font-mono text-[9px] text-white/90 drop-shadow-[0_1px_3px_rgba(0,0,0,1)] tracking-widest uppercase select-none">{preset.name}</span>
                         </div>
                       </button>
                     ))}
