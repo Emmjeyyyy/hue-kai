@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { RefreshCw, Plus, Minus, SlidersHorizontal, Check, Download } from 'lucide-react';
+import { RefreshCw, Plus, Minus, SlidersHorizontal, Check, Download, Eye, Copy } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { ColorCard, CyberButton } from '../components/UI';
 import { generatePalette, sortColorsByVisualProgression } from '../utils/colorUtils';
 import { ColorData, PaletteMode } from '../types';
 import { jsPDF } from "jspdf";
 import namer from 'color-namer';
+import { PalettePreviewModal } from '../components/PalettePreviewModal';
+import { ExportCodeModal } from '../components/ExportCodeModal';
 
 // Define all available modes for the filter
 const ALL_MODES: { value: PaletteMode; label: string }[] = [
@@ -63,6 +65,9 @@ export const Generator: React.FC = () => {
   const [activeModes, setActiveModes] = useState<PaletteMode[]>(ALL_MODES.map(m => m.value));
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
+  
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
 
   useEffect(() => {
     cachedColors = colors;
@@ -400,11 +405,31 @@ export const Generator: React.FC = () => {
                     <span className="hidden sm:inline">GENERATE</span>
                 </CyberButton>
 
+                {/* Preview Button */}
+                <CyberButton 
+                    onClick={() => setIsPreviewOpen(true)}
+                    className="w-10 h-10 p-0 flex items-center justify-center rounded-full -translate-y-[3px] text-gray-400 hover:text-white"
+                    variant="dark"
+                >
+                    <Eye size={18} />
+                </CyberButton>
+
+                {/* Copy / Export Button */}
+                <CyberButton 
+                    onClick={() => setIsExportOpen(true)}
+                    className="w-10 h-10 p-0 flex items-center justify-center rounded-full -translate-y-[3px] text-gray-400 hover:text-white"
+                    variant="dark"
+                    title="Copy Code"
+                >
+                    <Copy size={18} />
+                </CyberButton>
+
                 {/* Export Button */}
                 <CyberButton 
                     onClick={exportToPDF}
                     className="w-10 h-10 p-0 flex items-center justify-center rounded-full -translate-y-[3px] text-gray-400 hover:text-white"
                     variant="dark"
+                    title="Export PDF"
                 >
                     <Download size={18} />
                 </CyberButton>
@@ -431,6 +456,14 @@ export const Generator: React.FC = () => {
             </div>
           ))}
         </div>
+        
+        {isPreviewOpen && (
+          <PalettePreviewModal colors={colors} onClose={() => setIsPreviewOpen(false)} />
+        )}
+        
+        {isExportOpen && (
+          <ExportCodeModal colors={colors} onClose={() => setIsExportOpen(false)} />
+        )}
       </div>
     </Layout>
   );
