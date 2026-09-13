@@ -11,6 +11,7 @@
   "dependencies": {
     "color-namer": "^1.4.0",
     "culori": "^3.3.0",
+    "html-to-image": "^1.11.13",
     "jspdf": "^4.2.1",
     "lucide-react": "0.358.0",
     "react": "18.2.0",

@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   RefreshCw, Plus, Minus, Copy, Check,
-  Move, Trash2, Undo2, Redo2, Lock, Unlock
+  Move, Trash2, Undo2, Redo2, Lock, Unlock, ChevronDown, Download
 } from 'lucide-react';
+import * as htmlToImage from 'html-to-image';
 import { Layout } from '../components/Layout';
 import { CyberButton } from '../components/UI';
 import { hexToRgb, rgbToHex } from '../utils/colorUtils';
@@ -567,7 +568,11 @@ const AngleWheel: React.FC<{ angle: number; onChange: (a: number) => void; onDra
       if (!isDragging.current) return;
       onChange(getAngleFromEvent(e));
     };
-    const onUp = () => { isDragging.current = false; };
+    const onUp = () => { 
+      isDragging.current = false; 
+      const style = document.getElementById('hide-cursor-style');
+      if (style) style.remove();
+    };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
     window.addEventListener('touchmove', onMove);
@@ -577,6 +582,8 @@ const AngleWheel: React.FC<{ angle: number; onChange: (a: number) => void; onDra
       window.removeEventListener('mouseup', onUp);
       window.removeEventListener('touchmove', onMove);
       window.removeEventListener('touchend', onUp);
+      const style = document.getElementById('hide-cursor-style');
+      if (isDragging.current && style) style.remove();
     };
   }, [onChange, getAngleFromEvent]);
 
@@ -589,8 +596,28 @@ const AngleWheel: React.FC<{ angle: number; onChange: (a: number) => void; onDra
       <div
         ref={wheelRef}
         className="relative w-20 h-20 rounded-full border border-white/20 bg-white/5 cursor-pointer shrink-0 select-none"
-        onMouseDown={(e) => { isDragging.current = true; onDragStart?.(); onChange(getAngleFromEvent(e as any)); }}
-        onTouchStart={(e) => { isDragging.current = true; onDragStart?.(); onChange(getAngleFromEvent(e as any)); }}
+        onMouseDown={(e) => { 
+          isDragging.current = true; 
+          if (!document.getElementById('hide-cursor-style')) {
+            const style = document.createElement('style');
+            style.id = 'hide-cursor-style';
+            style.innerHTML = '* { cursor: none !important; }';
+            document.head.appendChild(style);
+          }
+          onDragStart?.(); 
+          onChange(getAngleFromEvent(e as any)); 
+        }}
+        onTouchStart={(e) => { 
+          isDragging.current = true; 
+          if (!document.getElementById('hide-cursor-style')) {
+            const style = document.createElement('style');
+            style.id = 'hide-cursor-style';
+            style.innerHTML = '* { cursor: none !important; }';
+            document.head.appendChild(style);
+          }
+          onDragStart?.(); 
+          onChange(getAngleFromEvent(e as any)); 
+        }}
       >
         <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100">
           <line x1="50" y1="10" x2="50" y2="90" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
@@ -714,12 +741,13 @@ export const GradientMaker: React.FC = () => {
   const [angle, setAngle] = useState(savedState?.angle ?? 135);
   const [radialShape, setRadialShape] = useState<'circle' | 'ellipse'>(savedState?.radialShape ?? 'circle');
   const [radialPos, setRadialPos] = useState(savedState?.radialPos ?? 'center');
+  const [canvasRatio, setCanvasRatio] = useState(savedState?.canvasRatio ?? '16 / 9');
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      generateStopCount, lockStopCount, lockAngle, stops, gradientType, angle, radialShape, radialPos
+      generateStopCount, lockStopCount, lockAngle, stops, gradientType, angle, radialShape, radialPos, canvasRatio
     }));
-  }, [generateStopCount, lockStopCount, lockAngle, stops, gradientType, angle, radialShape, radialPos]);
+  }, [generateStopCount, lockStopCount, lockAngle, stops, gradientType, angle, radialShape, radialPos, canvasRatio]);
   const [copied, setCopied] = useState(false);
   const barRef = useRef<HTMLDivElement>(null);
   
@@ -728,6 +756,7 @@ export const GradientMaker: React.FC = () => {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const prevGradientRef = useRef<string>('');
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const [past, setPast] = useState<GradientState[]>([]);
   const [future, setFuture] = useState<GradientState[]>([]);
@@ -754,6 +783,39 @@ export const GradientMaker: React.FC = () => {
       return newPast;
     });
   }, []);
+
+  const handleDownload = async () => {
+    if (isDownloading) return;
+    setIsDownloading(true);
+
+    let width = 1920;
+    let height = 1080;
+    if (canvasRatio === '4 / 3') { width = 1600; height = 1200; }
+    else if (canvasRatio === '1 / 1') { width = 1080; height = 1080; }
+    else if (canvasRatio === '3 / 4') { width = 1200; height = 1600; }
+    else if (canvasRatio === '9 / 16') { width = 1080; height = 1920; }
+
+    const tempNode = document.createElement('div');
+    tempNode.style.width = width + 'px';
+    tempNode.style.height = height + 'px';
+    tempNode.style.background = gradientCSS;
+    tempNode.style.position = 'absolute';
+    tempNode.style.left = '-9999px';
+    document.body.appendChild(tempNode);
+
+    try {
+      const dataUrl = await htmlToImage.toPng(tempNode, { width, height });
+      const link = document.createElement('a');
+      link.download = `huekai-gradient-${Date.now()}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Failed to download image', err);
+    } finally {
+      document.body.removeChild(tempNode);
+      setIsDownloading(false);
+    }
+  };
 
   const redo = useCallback(() => {
     setFuture(prev => {
@@ -1109,7 +1171,7 @@ export const GradientMaker: React.FC = () => {
           {/* ── RIGHT: Gradient Preview (16:9 — 1920×1080) ───────────── */}
           <div className="flex-1 flex flex-col items-center justify-center overflow-hidden bg-chroma-black p-4 gap-3 min-h-0">
 
-            <div className="relative w-full shrink min-h-0" style={{ aspectRatio: '16 / 9', maxHeight: 'calc(100% - 120px)' }}>
+            <div className="relative shrink min-h-0 h-full max-w-full w-auto transition-[aspect-ratio] duration-300 ease-in-out ring-1 ring-white/20 rounded-lg shadow-2xl" style={{ aspectRatio: canvasRatio, maxHeight: 'calc(100% - 120px)' }}>
               {/* Previous gradient — fades out during transition */}
               <div
                 className="absolute inset-0 rounded-lg overflow-hidden shadow-[0_0_20px_rgba(0,0,0,0.5)] ring-1 ring-black/50"
@@ -1158,7 +1220,42 @@ export const GradientMaker: React.FC = () => {
             </div>
 
             {/* ── Main Actions (Generate & Stops Count) ── */}
-            <div className="flex items-center justify-center gap-6 w-full shrink-0">
+            <div className="relative flex items-center justify-center gap-6 w-full shrink-0">
+              {/* Aspect Ratio Selector */}
+              <div className="absolute left-0 flex items-center gap-2 -translate-y-[3px]">
+                <div className="relative group cursor-pointer">
+                  <select
+                    value={canvasRatio}
+                    onMouseDown={e => {
+                      if (document.activeElement === e.currentTarget) {
+                        const target = e.currentTarget;
+                        setTimeout(() => target.blur(), 50);
+                      }
+                    }}
+                    onChange={e => {
+                      setCanvasRatio(e.target.value);
+                      e.target.blur();
+                    }}
+                    className="peer appearance-none bg-black border border-white/10 rounded-lg px-2 py-2 w-24 text-center font-mono text-sm text-white/70 group-hover:text-white focus:outline-none group-hover:border-white/30 cursor-pointer transition-colors"
+                  >
+                    <option value="16 / 9">16:9</option>
+                    <option value="4 / 3">4:3</option>
+                    <option value="1 / 1">1:1</option>
+                    <option value="3 / 4">3:4</option>
+                    <option value="9 / 16">9:16</option>
+                  </select>
+                  <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 group-hover:text-white transition-all duration-300 peer-focus:-rotate-180 pointer-events-none" />
+                </div>
+                <button
+                  onClick={handleDownload}
+                  disabled={isDownloading}
+                  title="Download gradient as PNG"
+                  className="w-[34px] h-[34px] rounded-full border border-white/10 bg-black flex items-center justify-center text-white hover:border-white/30 transition-colors disabled:opacity-50 shrink-0"
+                >
+                  <Download size={14} className={isDownloading ? 'animate-bounce' : ''} />
+                </button>
+              </div>
+
               <CyberButton onClick={regenerate} pressed={isSpacePressed} className="w-[280px] flex justify-center -translate-y-1">
                 <RefreshCw size={16} />
                 <span>GENERATE</span>
