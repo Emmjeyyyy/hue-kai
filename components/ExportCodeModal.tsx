@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Copy, Check, Code, List } from 'lucide-react';
+import { X, Copy, Check, Code, List, FileText, Download } from 'lucide-react';
 import { ColorData } from '../types';
+import { jsPDF } from 'jspdf';
+import namer from 'color-namer';
 
 interface ExportCodeModalProps {
   colors: ColorData[];
@@ -9,8 +11,96 @@ interface ExportCodeModalProps {
 }
 
 export const ExportCodeModal: React.FC<ExportCodeModalProps> = ({ colors, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'list' | 'css'>('list');
+  const [activeTab, setActiveTab] = useState<'list' | 'css' | 'pdf'>('list');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [pdfUri, setPdfUri] = useState<string | null>(null);
+
+  const generatePdfDoc = () => {
+    const doc = new jsPDF({ format: [216, 384] });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    const margin = 20;
+    
+    // Header
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.text("HUEKAI // PALETTE", margin, 25);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    const date = new Date().toLocaleDateString();
+    doc.text(`Generated on ${date}`, margin, 32);
+
+    // Hex Code Group String
+    const hexGroup = colors.map(color => color.hex).join(',');
+    doc.setFont("courier", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(150, 150, 150);
+    doc.text(hexGroup, margin, 42);
+
+    const startY = 55;
+    const gutter = 10;
+    
+    const useTwoColumns = colors.length > 5;
+    const colCount = useTwoColumns ? 2 : 1;
+    
+    const availableWidth = pageWidth - (margin * 2) - ((colCount - 1) * gutter);
+    const cardWidth = availableWidth / colCount;
+    const rowGap = 10;
+    
+    const rowCount = Math.ceil(colors.length / colCount);
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const maxAvailableHeight = pageHeight - startY - margin;
+    
+    let cardHeight = useTwoColumns ? 35 : 50;
+    if (rowCount * cardHeight + (rowCount - 1) * rowGap > maxAvailableHeight) {
+        cardHeight = (maxAvailableHeight - (rowCount - 1) * rowGap) / rowCount;
+    }
+
+    colors.forEach((color, i) => {
+        const colIndex = i % colCount;
+        const rowIndex = Math.floor(i / colCount);
+        
+        const x = margin + (colIndex * (cardWidth + gutter));
+        const y = startY + (rowIndex * (cardHeight + rowGap));
+        
+        // Color Box
+        doc.setFillColor(color.hex);
+        doc.rect(x, y, cardWidth, cardHeight, "F");
+        
+        // White overlay for text area at the bottom of the card
+        const textAreaHeight = useTwoColumns ? 12 : 16;
+        doc.setFillColor(255, 255, 255);
+        doc.rect(x, y + cardHeight - textAreaHeight, cardWidth, textAreaHeight, "F");
+        
+        // Text
+        doc.setTextColor(0);
+        doc.setFont("courier", "bold");
+        doc.setFontSize(useTwoColumns ? 10 : 12);
+        
+        // Hex Code and Name
+        const nameAndHex = `${color.hex} | ${namer(color.hex).ntc[0].name}`;
+        doc.text(nameAndHex, x + 5, y + cardHeight - textAreaHeight + (useTwoColumns ? 8 : 11));
+        
+        // RGB
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(useTwoColumns ? 8 : 9);
+        doc.setTextColor(80);
+        const rgbText = `RGB: ${color.rgb}`;
+        const rgbWidth = doc.getTextWidth(rgbText);
+        doc.text(rgbText, x + cardWidth - rgbWidth - 5, y + cardHeight - textAreaHeight + (useTwoColumns ? 8 : 11));
+    });
+    
+    return doc;
+  };
+
+  React.useEffect(() => {
+    if (activeTab === 'pdf') {
+      const doc = generatePdfDoc();
+      setPdfUri(doc.output('datauristring'));
+    }
+  }, [activeTab, colors]);
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -63,7 +153,7 @@ export const ExportCodeModal: React.FC<ExportCodeModalProps> = ({ colors, onClos
 
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-4xl h-[600px] max-h-[90vh] bg-chroma-black border border-white/10 rounded-2xl flex flex-col overflow-hidden shadow-2xl relative">
+      <div className="w-full max-w-4xl h-[800px] max-h-[90vh] bg-chroma-black border border-white/10 rounded-2xl flex flex-col overflow-hidden shadow-2xl relative">
         
         {/* Header */}
         <div className="p-5 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
@@ -93,17 +183,25 @@ export const ExportCodeModal: React.FC<ExportCodeModalProps> = ({ colors, onClos
           >
             <Code size={16} /> CSS
           </button>
+          <button 
+            className={`pb-4 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'pdf' ? 'border-chroma-magenta text-chroma-magenta' : 'border-transparent text-gray-400 hover:text-white'}`}
+            onClick={() => setActiveTab('pdf')}
+          >
+            <FileText size={16} /> PDF
+          </button>
         </div>
 
         {/* Content */}
         <div className="p-6 flex-1 min-h-0">
-          {activeTab === 'list' ? (
+          {activeTab === 'list' && (
             <div className="flex flex-col md:flex-row gap-4 h-full">
               {renderListSection('HEX', 'hex')}
               {renderListSection('RGB', 'rgb')}
               {renderListSection('HSL', 'hsl')}
             </div>
-          ) : (
+          )}
+          
+          {activeTab === 'css' && (
             <div className="bg-[#0D1117] border border-white/10 rounded-xl overflow-hidden shadow-inner flex flex-col h-full">
               <div className="flex justify-between items-center p-3 border-b border-white/10 bg-white/5">
                 <span className="text-xs font-mono text-gray-400">variables.css</span>
@@ -129,6 +227,18 @@ export const ExportCodeModal: React.FC<ExportCodeModalProps> = ({ colors, onClos
                   })}
                   {'}'}
                 </pre>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'pdf' && (
+            <div className="bg-[#0D1117] border border-white/10 rounded-xl overflow-hidden shadow-inner flex flex-col h-full">
+              <div className="flex-1 overflow-hidden bg-white/10 flex items-center justify-center">
+                {pdfUri ? (
+                  <iframe src={pdfUri} className="w-full h-full border-none" title="PDF Preview" />
+                ) : (
+                  <div className="animate-pulse text-white/50 text-sm">Generating Preview...</div>
+                )}
               </div>
             </div>
           )}

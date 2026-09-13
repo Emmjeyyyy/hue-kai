@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { RefreshCw, Plus, Minus, SlidersHorizontal, Check, Download, Eye, Copy } from 'lucide-react';
+import { RefreshCw, Plus, Minus, SlidersHorizontal, Check, Download, Monitor, Copy } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { ColorCard, CyberButton } from '../components/UI';
 import { generatePalette, sortColorsByVisualProgression } from '../utils/colorUtils';
 import { ColorData, PaletteMode } from '../types';
-import { jsPDF } from "jspdf";
 import namer from 'color-namer';
 import { PalettePreviewModal } from '../components/PalettePreviewModal';
 import { ExportCodeModal } from '../components/ExportCodeModal';
@@ -230,87 +229,6 @@ export const Generator: React.FC = () => {
       });
   };
 
-  const exportToPDF = () => {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    
-    // Header
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(22);
-    doc.text("HUEKAI // PALETTE", 20, 25);
-    
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    const date = new Date().toLocaleDateString();
-    doc.text(`Generated on ${date}`, 20, 32);
-
-    // Hex Code Group String
-    const hexGroup = colors.map(color => color.hex).join(',');
-    doc.setFont("courier", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(150, 150, 150);
-    doc.text(hexGroup, 20, 42);
-
-    const startY = 50;
-    const margin = 20;
-    const gutter = 10;
-    
-    // Layout Calculation
-    // We'll use 2 columns if count > 5 to save vertical space, otherwise 1 column for big bold cards
-    const useTwoColumns = colors.length > 5;
-    const colCount = useTwoColumns ? 2 : 1;
-    
-    const availableWidth = pageWidth - (margin * 2) - ((colCount - 1) * gutter);
-    const cardWidth = availableWidth / colCount;
-    const rowGap = 10;
-    
-    const rowCount = Math.ceil(colors.length / colCount);
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const maxAvailableHeight = pageHeight - startY - margin;
-    
-    let cardHeight = useTwoColumns ? 35 : 50;
-    if (rowCount * cardHeight + (rowCount - 1) * rowGap > maxAvailableHeight) {
-        cardHeight = (maxAvailableHeight - (rowCount - 1) * rowGap) / rowCount;
-    }
-
-    colors.forEach((color, i) => {
-        const colIndex = i % colCount;
-        const rowIndex = Math.floor(i / colCount);
-        
-        const x = margin + (colIndex * (cardWidth + gutter));
-        const y = startY + (rowIndex * (cardHeight + rowGap));
-        
-        // Color Box
-        doc.setFillColor(color.hex);
-        doc.rect(x, y, cardWidth, cardHeight, "F");
-        
-        // White overlay for text area at the bottom of the card
-        const textAreaHeight = useTwoColumns ? 12 : 16;
-        doc.setFillColor(255, 255, 255);
-        doc.rect(x, y + cardHeight - textAreaHeight, cardWidth, textAreaHeight, "F");
-        
-        // Text
-        doc.setTextColor(0);
-        doc.setFont("courier", "bold");
-        doc.setFontSize(useTwoColumns ? 10 : 12);
-        
-        // Hex Code and Name
-        const nameAndHex = `${color.hex} | ${namer(color.hex).ntc[0].name}`;
-        doc.text(nameAndHex, x + 5, y + cardHeight - textAreaHeight + (useTwoColumns ? 8 : 11));
-        
-        // RGB (Right aligned)
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(useTwoColumns ? 8 : 9);
-        doc.setTextColor(80);
-        const rgbText = `RGB: ${color.rgb}`;
-        const rgbWidth = doc.getTextWidth(rgbText);
-        doc.text(rgbText, x + cardWidth - rgbWidth - 5, y + cardHeight - textAreaHeight + (useTwoColumns ? 8 : 11));
-    });
-    
-    doc.save("huekai-palette.pdf");
-  };
-
   return (
     <Layout>
       <div className="flex-1 flex flex-col h-full w-full">
@@ -410,8 +328,9 @@ export const Generator: React.FC = () => {
                     onClick={() => setIsPreviewOpen(true)}
                     className="w-10 h-10 p-0 flex items-center justify-center rounded-full -translate-y-[3px] text-gray-400 hover:text-white"
                     variant="dark"
+                    title="Preview UI"
                 >
-                    <Eye size={18} />
+                    <Monitor size={18} />
                 </CyberButton>
 
                 {/* Copy / Export Button */}
@@ -419,19 +338,9 @@ export const Generator: React.FC = () => {
                     onClick={() => setIsExportOpen(true)}
                     className="w-10 h-10 p-0 flex items-center justify-center rounded-full -translate-y-[3px] text-gray-400 hover:text-white"
                     variant="dark"
-                    title="Copy Code"
+                    title="Export & Copy"
                 >
                     <Copy size={18} />
-                </CyberButton>
-
-                {/* Export Button */}
-                <CyberButton 
-                    onClick={exportToPDF}
-                    className="w-10 h-10 p-0 flex items-center justify-center rounded-full -translate-y-[3px] text-gray-400 hover:text-white"
-                    variant="dark"
-                    title="Export PDF"
-                >
-                    <Download size={18} />
                 </CyberButton>
 
             </div>
