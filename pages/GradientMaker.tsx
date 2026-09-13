@@ -511,7 +511,7 @@ const StopRow: React.FC<{
       <button
         onClick={() => canDelete && onDelete(stop.id)}
         disabled={!canDelete}
-        className="text-white/20 hover:text-red-400 disabled:opacity-20 disabled:cursor-not-allowed transition-colors shrink-0"
+        className="text-white hover:text-red-400 disabled:opacity-20 disabled:cursor-not-allowed transition-colors shrink-0"
       >
         <Trash2 size={14} />
       </button>
@@ -527,7 +527,7 @@ const TypeBtn: React.FC<{
     className={`flex-1 flex flex-col items-center py-2.5 px-2 rounded-lg border transition-all duration-200 ${
       active
         ? 'border-chroma-cyan/60 bg-chroma-cyan/10 text-chroma-cyan shadow-[0_0_10px_rgba(0,255,255,0.15)]'
-        : 'border-white/10 bg-white/[0.02] text-white/40 hover:border-white/20 hover:text-white/70'
+        : 'border-white/10 bg-white/[0.02] text-white hover:border-white/30'
     }`}
   >
     <span className="font-mono font-bold text-xs tracking-widest">{label}</span>
@@ -535,7 +535,7 @@ const TypeBtn: React.FC<{
   </button>
 );
 
-const AngleWheel: React.FC<{ angle: number; onChange: (a: number) => void; onDragStart?: () => void }> = ({ angle, onChange, onDragStart }) => {
+const AngleWheel: React.FC<{ angle: number; onChange: (a: number) => void; onDragStart?: () => void; isLocked?: boolean; onLockToggle?: () => void }> = ({ angle, onChange, onDragStart, isLocked, onLockToggle }) => {
   const wheelRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
 
@@ -578,7 +578,7 @@ const AngleWheel: React.FC<{ angle: number; onChange: (a: number) => void; onDra
     <div className="flex items-center gap-3">
       <div
         ref={wheelRef}
-        className="relative w-12 h-12 rounded-full border border-white/20 bg-white/5 cursor-pointer shrink-0 select-none"
+        className="relative w-20 h-20 rounded-full border border-white/20 bg-white/5 cursor-pointer shrink-0 select-none"
         onMouseDown={(e) => { isDragging.current = true; onDragStart?.(); onChange(getAngleFromEvent(e as any)); }}
         onTouchStart={(e) => { isDragging.current = true; onDragStart?.(); onChange(getAngleFromEvent(e as any)); }}
       >
@@ -588,6 +588,20 @@ const AngleWheel: React.FC<{ angle: number; onChange: (a: number) => void; onDra
           <circle cx={dotX} cy={dotY} r="5" fill="#00ffff" />
           <line x1="50" y1="50" x2={dotX} y2={dotY} stroke="#00ffff" strokeWidth="1.5" strokeOpacity="0.6" />
         </svg>
+        {onLockToggle && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onLockToggle(); }}
+            onMouseDown={(e) => e.stopPropagation()}
+            title={isLocked ? 'Unlock angle' : 'Lock angle'}
+            className={`absolute -top-3 -right-3 w-6 h-6 flex items-center justify-center rounded-full border transition-all z-10 ${
+              isLocked
+                ? 'border-chroma-cyan/70 bg-chroma-cyan/20 text-chroma-cyan shadow-[0_0_8px_rgba(0,255,255,0.3)]'
+                : 'border-white/30 bg-[#111] text-white/60 hover:text-white hover:border-white/50'
+            }`}
+          >
+            {isLocked ? <Lock size={12} /> : <Unlock size={12} />}
+          </button>
+        )}
       </div>
       <div className="flex flex-col">
         <input
@@ -671,15 +685,31 @@ const DraggableStopMarker: React.FC<{
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export const GradientMaker: React.FC = () => {
-  const [generateStopCount, setGenerateStopCount] = useState(4);
-  const [lockStopCount, setLockStopCount] = useState(false);
-  const [lockAngle, setLockAngle] = useState(false);
+  const STORAGE_KEY = 'hue-kai-gradient-state';
+  const getInitialState = () => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return null;
+  };
+  const savedState = getInitialState();
+
+  const [generateStopCount, setGenerateStopCount] = useState(savedState?.generateStopCount ?? 4);
+  const [lockStopCount, setLockStopCount] = useState(savedState?.lockStopCount ?? false);
+  const [lockAngle, setLockAngle] = useState(savedState?.lockAngle ?? false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
-  const [stops, setStops] = useState<GradientStop[]>(() => generateStopsFromPalette(4));
-  const [gradientType, setGradientType] = useState<GradientType>('linear');
-  const [angle, setAngle] = useState(135);
-  const [radialShape, setRadialShape] = useState<'circle' | 'ellipse'>('circle');
-  const [radialPos, setRadialPos] = useState('center');
+  const [stops, setStops] = useState<GradientStop[]>(() => savedState?.stops ?? generateStopsFromPalette(4));
+  const [gradientType, setGradientType] = useState<GradientType>(savedState?.gradientType ?? 'linear');
+  const [angle, setAngle] = useState(savedState?.angle ?? 135);
+  const [radialShape, setRadialShape] = useState<'circle' | 'ellipse'>(savedState?.radialShape ?? 'circle');
+  const [radialPos, setRadialPos] = useState(savedState?.radialPos ?? 'center');
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      generateStopCount, lockStopCount, lockAngle, stops, gradientType, angle, radialShape, radialPos
+    }));
+  }, [generateStopCount, lockStopCount, lockAngle, stops, gradientType, angle, radialShape, radialPos]);
   const [copied, setCopied] = useState(false);
   const barRef = useRef<HTMLDivElement>(null);
   
@@ -878,7 +908,7 @@ export const GradientMaker: React.FC = () => {
 
             {/* Panel header */}
             <div className="shrink-0 px-5 py-3 border-b border-white/10 flex items-center justify-between">
-              <span className="font-mono text-xs text-white/40 tracking-widest uppercase">Gradient</span>
+              <span className="font-mono text-xs text-white tracking-widest uppercase">Gradient</span>
               <span className="font-mono text-[9px] text-white/20">グラデーション</span>
             </div>
 
@@ -888,7 +918,7 @@ export const GradientMaker: React.FC = () => {
 
               {/* ── Gradient Type ─────────────────────────────────────── */}
               <section>
-                <label className="block font-mono text-[10px] text-white/40 tracking-widest uppercase mb-2">
+                <label className="block font-mono text-[10px] text-white tracking-widest uppercase mb-2">
                   Type
                 </label>
                 <div className="flex gap-2">
@@ -900,7 +930,7 @@ export const GradientMaker: React.FC = () => {
               {/* ── Linear Presets — shown only for linear ──────────── */}
               {gradientType === 'linear' && (
                 <section>
-                  <label className="block font-mono text-[10px] text-white/40 tracking-widest uppercase mb-2">
+                  <label className="block font-mono text-[10px] text-white tracking-widest uppercase mb-2">
                     Linear Presets
                   </label>
                   <div className="grid grid-cols-2 gap-2">
@@ -912,7 +942,7 @@ export const GradientMaker: React.FC = () => {
                           setAngle(preset.angle);
                           setStops(preset.stops.map(s => ({ ...s, id: uid() })));
                         }}
-                        className="group relative h-10 rounded overflow-hidden border border-white/10 hover:border-chroma-cyan/50 transition-colors shadow-lg"
+                        className="group relative h-10 rounded overflow-hidden border border-white/10 hover:border-white transition-colors shadow-lg"
                       >
                         <div 
                           className="absolute inset-0 opacity-80 group-hover:opacity-100 transition-opacity"
@@ -930,45 +960,43 @@ export const GradientMaker: React.FC = () => {
               {/* ── Angle control (linear only) — hidden for radial ───── */}
               {/* Using visibility:hidden keeps layout stable; the section space is always reserved */}
               <section style={{ visibility: gradientType === 'radial' ? 'hidden' : 'visible', height: gradientType === 'radial' ? 0 : 'auto', overflow: 'hidden', marginTop: gradientType === 'radial' ? 0 : undefined }}>
-                <div className="flex items-center justify-between mb-3">
-                  <label className="font-mono text-[10px] text-white/40 tracking-widest uppercase">
+                <div className="flex items-center mb-3">
+                  <label className="font-mono text-[10px] text-white tracking-widest uppercase">
                     Direction
                   </label>
-                  <button
-                    onClick={() => setLockAngle(prev => !prev)}
-                    title={lockAngle ? 'Unlock angle (randomizes on generate)' : 'Lock angle (keeps current on generate)'}
-                    className={`flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[9px] border transition-all ${
-                      lockAngle
-                        ? 'border-chroma-cyan/60 bg-chroma-cyan/10 text-chroma-cyan'
-                        : 'border-white/10 text-white/30 hover:text-white/60 hover:border-white/20'
-                    }`}
-                  >
-                    {lockAngle ? <Lock size={9} /> : <Unlock size={9} />}
-                    <span>{lockAngle ? 'LOCKED' : 'FREE'}</span>
-                  </button>
                 </div>
-                <AngleWheel angle={angle} onChange={setAngle} onDragStart={saveHistory} />
-                <div className="flex gap-1 mt-3 flex-wrap">
-                  {([0, 45, 90, 135, 180, 225, 270, 315] as const).map(a => (
-                    <button
-                      key={a}
-                      onClick={() => { saveHistory(); setAngle(a); }}
-                      className={`px-2 py-1 rounded font-mono text-[10px] border transition-all ${
-                        angle === a
-                          ? 'border-chroma-cyan/60 bg-chroma-cyan/10 text-chroma-cyan'
-                          : 'border-white/10 bg-white/[0.02] text-white/30 hover:text-white/60 hover:border-white/20'
-                      }`}
-                    >
-                      {a}°
-                    </button>
-                  ))}
+                <div className="flex items-center gap-3">
+                  {/* Preset degree buttons — 4 columns × 2 rows */}
+                  <div className="grid grid-cols-4 gap-1 flex-1">
+                    {([0, 45, 90, 135, 180, 225, 270, 315] as const).map(a => (
+                      <button
+                        key={a}
+                        onClick={() => { saveHistory(); setAngle(a); }}
+                        className={`px-1 py-1 rounded font-mono text-[9px] border transition-all text-center ${
+                          angle === a
+                            ? 'border-chroma-cyan/60 bg-chroma-cyan/10 text-chroma-cyan'
+                            : 'border-white/10 bg-white/[0.02] text-white hover:border-white/30'
+                        }`}
+                      >
+                        {a}°
+                      </button>
+                    ))}
+                  </div>
+                  {/* Volume knob (AngleWheel) on the right, lock icon inside wheel */}
+                  <AngleWheel
+                    angle={angle}
+                    onChange={setAngle}
+                    onDragStart={saveHistory}
+                    isLocked={lockAngle}
+                    onLockToggle={() => setLockAngle(prev => !prev)}
+                  />
                 </div>
               </section>
 
               {/* ── Radial Options — shown only for radial ──────────── */}
               {gradientType === 'radial' && (
                 <section>
-                  <label className="block font-mono text-[10px] text-white/40 tracking-widest uppercase mb-2">
+                  <label className="block font-mono text-[10px] text-white tracking-widest uppercase mb-2">
                     Radial Options
                   </label>
                   <div className="space-y-3">
@@ -982,7 +1010,7 @@ export const GradientMaker: React.FC = () => {
                             className={`flex-1 py-1.5 rounded font-mono text-[11px] border transition-all uppercase tracking-wide ${
                               radialShape === s
                                 ? 'border-chroma-cyan/60 bg-chroma-cyan/10 text-chroma-cyan'
-                                : 'border-white/10 bg-white/[0.02] text-white/30 hover:border-white/20 hover:text-white/60'
+                                : 'border-white/10 bg-white/[0.02] text-white hover:border-white/30'
                             }`}
                           >
                             {s}
@@ -1000,7 +1028,7 @@ export const GradientMaker: React.FC = () => {
                             className={`px-2 py-1 rounded font-mono text-[10px] border transition-all ${
                               radialPos === p
                                 ? 'border-chroma-cyan/60 bg-chroma-cyan/10 text-chroma-cyan'
-                                : 'border-white/10 bg-white/[0.02] text-white/30 hover:text-white/60 hover:border-white/20'
+                                : 'border-white/10 bg-white/[0.02] text-white hover:border-white/30'
                             }`}
                           >
                             {p}
@@ -1015,12 +1043,12 @@ export const GradientMaker: React.FC = () => {
               {/* ── Color Stops ───────────────────────────────────────── */}
               <section>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="font-mono text-[10px] text-white/40 tracking-widest uppercase">
+                  <label className="font-mono text-[10px] text-white tracking-widest uppercase">
                     Color Stops
                   </label>
                   <button
                     onClick={copyHexList}
-                    className="font-mono text-[9px] text-white/30 hover:text-chroma-cyan transition-colors flex items-center gap-1"
+                    className="font-mono text-[9px] text-white hover:text-chroma-cyan transition-colors flex items-center gap-1"
                   >
                     <Copy size={10} /> HEX LIST
                   </button>
@@ -1043,7 +1071,7 @@ export const GradientMaker: React.FC = () => {
                 {stops.length < 8 && (
                   <button
                     onClick={addStop}
-                    className="mt-2 w-full py-2 rounded-lg border border-dashed border-white/10 hover:border-chroma-cyan/40 text-white/25 hover:text-chroma-cyan/70 font-mono text-xs tracking-widest uppercase transition-all flex items-center justify-center gap-2"
+                    className="mt-2 w-full py-2 rounded-lg border border-dashed border-white/40 hover:border-white/80 text-white hover:text-white font-mono text-xs tracking-widest uppercase transition-all flex items-center justify-center gap-2"
                   >
                     <Plus size={12} /> Add Stop
                   </button>
@@ -1052,12 +1080,11 @@ export const GradientMaker: React.FC = () => {
 
               {/* ── Generated CSS ─────────────────────────────────────── */}
               <section>
-                <label className="block font-mono text-[10px] text-white/40 tracking-widest uppercase mb-2">
+                <label className="block font-mono text-[10px] text-white tracking-widest uppercase mb-2">
                   Generated CSS
                 </label>
                 <div className="w-full shrink-0 border border-white/10 rounded-lg bg-black/60 p-4 flex items-start gap-3 relative group">
-                  <span className="font-mono text-[9px] text-white/20 shrink-0 hidden sm:block tracking-widest mt-0.5">CSS</span>
-                  <pre className="flex-1 font-mono text-xs text-chroma-cyan/80 whitespace-pre overflow-x-auto min-w-0 select-text custom-scrollbar pb-1 leading-relaxed">
+                  <pre className="flex-1 font-mono text-sm text-chroma-cyan/80 whitespace-pre overflow-x-auto min-w-0 select-text custom-scrollbar pb-1 leading-relaxed">
 {formattedCSS}
                   </pre>
                   <button onClick={copyCSS} title="Copy CSS" className="absolute top-3 right-3 p-1.5 bg-white/5 hover:bg-white/10 rounded text-white/30 hover:text-chroma-cyan transition-colors shrink-0">
