@@ -664,6 +664,8 @@ const DraggableStopMarker: React.FC<{
   onDragEnd?: () => void;
 }> = ({ stop, barRef, onChange, onDragStart, onDragEnd }) => {
   const isDragging = useRef(false);
+  const markerRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number | null>(null);
   
   // Use a ref for the latest callback to avoid re-binding event listeners
   const onChangeRef = useRef(onChange);
@@ -676,15 +678,31 @@ const DraggableStopMarker: React.FC<{
       const rect = barRef.current.getBoundingClientRect();
       const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
       let pos = ((clientX - rect.left) / rect.width) * 100;
-      pos = Math.max(0, Math.min(100, Math.round(pos)));
+      pos = Math.max(0, Math.min(100, pos)); // Exact position for pixel-perfect smooth dragging!
       
-      onChangeRef.current(stop.id, pos);
+      // 1. Instantly update the DOM to guarantee smooth 120fps dot dragging
+      if (markerRef.current) {
+        markerRef.current.style.left = `${pos}%`;
+      }
+      
+      // 2. Throttle the heavy React state updates (round here so CSS/UI stays clean integers)
+      if (rafRef.current === null) {
+        rafRef.current = requestAnimationFrame(() => {
+          onChangeRef.current(stop.id, Math.round(pos));
+          rafRef.current = null;
+        });
+      }
     };
     
     const onUp = () => { 
       if (isDragging.current) {
         isDragging.current = false; 
+        if (markerRef.current) markerRef.current.classList.remove('scale-150');
         onDragEnd?.();
+        if (rafRef.current !== null) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
       }
     };
     
@@ -698,21 +716,32 @@ const DraggableStopMarker: React.FC<{
       window.removeEventListener('mouseup', onUp);
       window.removeEventListener('touchmove', onMove);
       window.removeEventListener('touchend', onUp);
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
   }, [barRef, stop.id]); // Empty reactive dependencies — listeners are stable
 
+  // Sync DOM with external prop changes when not actively dragging
+  useEffect(() => {
+    if (!isDragging.current && markerRef.current) {
+      markerRef.current.style.left = `${stop.position}%`;
+    }
+  }, [stop.position]);
+
   return (
     <div
-      className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 rounded-full border-2 border-white shadow-[0_0_6px_rgba(0,0,0,0.9)] cursor-grab active:cursor-grabbing hover:scale-125 transition-transform touch-none"
+      ref={markerRef}
+      className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 rounded-full border-2 border-white shadow-[0_0_6px_rgba(0,0,0,0.9)] cursor-grab active:cursor-grabbing hover:scale-150 transition-transform touch-none"
       style={{ left: `${stop.position}%`, backgroundColor: stop.hex }}
       onMouseDown={(e) => { 
         e.preventDefault(); 
         isDragging.current = true; 
+        if (markerRef.current) markerRef.current.classList.add('scale-150');
         onDragStart?.();
       }}
       onTouchStart={(e) => { 
         // e.preventDefault(); // Sometimes needed, but can break scrolling on some mobile devices if on the parent. On the dot it's fine.
         isDragging.current = true; 
+        if (markerRef.current) markerRef.current.classList.add('scale-150');
         onDragStart?.();
       }}
     />
@@ -752,7 +781,7 @@ export const GradientMaker: React.FC = () => {
   const barRef = useRef<HTMLDivElement>(null);
   
   const [isDraggingNode, setIsDraggingNode] = useState(false);
-  const [displayStops, setDisplayStops] = useState<GradientStop[]>([]);
+  const dragOrderRef = useRef<string[]>([]);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const prevGradientRef = useRef<string>('');
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -799,11 +828,17 @@ export const GradientMaker: React.FC = () => {
     tempNode.style.width = width + 'px';
     tempNode.style.height = height + 'px';
     tempNode.style.background = gradientCSS;
-    tempNode.style.position = 'absolute';
-    tempNode.style.left = '-9999px';
+    tempNode.style.position = 'fixed';
+    tempNode.style.top = '0';
+    tempNode.style.left = '0';
+    tempNode.style.zIndex = '-9999';
+    // Add a dummy child to prevent empty-node optimization bugs in html-to-image
+    tempNode.innerHTML = '<div style="width:100%;height:100%;"></div>';
     document.body.appendChild(tempNode);
 
     try {
+      // Give the browser a moment to layout and paint the node before capture
+      await new Promise(resolve => setTimeout(resolve, 150));
       const dataUrl = await htmlToImage.toPng(tempNode, { width, height });
       const link = document.createElement('a');
       link.download = `huekai-gradient-${Date.now()}.png`;
@@ -856,15 +891,14 @@ export const GradientMaker: React.FC = () => {
 
   const sortedStops = [...stops].sort((a, b) => a.position - b.position);
 
-  // Defer list sorting while dragging so rows don't jump around instantly
-  useEffect(() => {
+  // Synchronously compute displayStops to avoid a double-render frame lag during dragging
+  const displayStops = React.useMemo(() => {
     if (!isDraggingNode) {
-      setDisplayStops([...stops].sort((a, b) => a.position - b.position));
+      const sorted = [...stops].sort((a, b) => a.position - b.position);
+      dragOrderRef.current = sorted.map(s => s.id);
+      return sorted;
     } else {
-      setDisplayStops(prev => prev.map(p => {
-        const live = stops.find(s => s.id === p.id);
-        return live ? live : p;
-      }));
+      return dragOrderRef.current.map(id => stops.find(s => s.id === id)).filter(Boolean) as GradientStop[];
     }
   }, [stops, isDraggingNode]);
 
