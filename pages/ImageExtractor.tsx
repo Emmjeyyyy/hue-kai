@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, X, Loader2, Plus, Minus, Image as ImageIcon, Download, Eye, EyeOff } from 'lucide-react';
+import { Upload, X, Loader2, Plus, Minus, Image as ImageIcon, Eye, EyeOff, Monitor, Copy } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { ColorCard, CyberButton } from '../components/UI';
 import { createColorData, rgbToHex } from '../utils/colorUtils';
 import { ColorData } from '../types';
 import { validateImageFile } from '../utils/fileValidation';
 import { converter, differenceEuclidean } from 'culori';
-import { jsPDF } from "jspdf";
-import namer from 'color-namer';
+import { PalettePreviewModal } from '../components/PalettePreviewModal';
+import { ExportCodeModal } from '../components/ExportCodeModal';
 
 const oklch = converter('oklch');
 const diff = differenceEuclidean('oklch');
@@ -26,6 +26,8 @@ export const ImageExtractor: React.FC = () => {
     const [showSources, setShowSources] = useState(false);
     const [hoveredColorHex, setHoveredColorHex] = useState<string | null>(null);
     const [uploadError, setUploadError] = useState<string | null>(null);
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+    const [isExportOpen, setIsExportOpen] = useState(false);
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     const handleFile = async (file: File) => {
@@ -348,42 +350,6 @@ export const ImageExtractor: React.FC = () => {
         if (rowCount * cardHeight + (rowCount - 1) * rowGap > maxAvailableHeight) {
             cardHeight = (maxAvailableHeight - (rowCount - 1) * rowGap) / rowCount;
         }
-
-        palette.forEach((color, i) => {
-            const colIndex = i % colCount;
-            const rowIndex = Math.floor(i / colCount);
-
-            const x = margin + (colIndex * (cardWidth + gutter));
-            const y = startY + (rowIndex * (cardHeight + rowGap));
-
-            // Color Box
-            doc.setFillColor(color.hex);
-            doc.rect(x, y, cardWidth, cardHeight, "F");
-
-            // White overlay for text area at the bottom of the card
-            const textAreaHeight = useTwoColumns ? 12 : 16;
-            doc.setFillColor(255, 255, 255);
-            doc.rect(x, y + cardHeight - textAreaHeight, cardWidth, textAreaHeight, "F");
-
-            // Text
-            doc.setTextColor(0);
-            doc.setFont("courier", "bold");
-            doc.setFontSize(useTwoColumns ? 10 : 12);
-
-            // Hex Code and Name
-            const nameAndHex = `${color.hex} | ${namer(color.hex).ntc[0].name}`;
-            doc.text(nameAndHex, x + 5, y + cardHeight - textAreaHeight + (useTwoColumns ? 8 : 11));
-
-            // RGB (Right aligned)
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(useTwoColumns ? 8 : 9);
-            doc.setTextColor(80);
-            const rgbText = `RGB: ${color.rgb}`;
-            const rgbWidth = doc.getTextWidth(rgbText);
-            doc.text(rgbText, x + cardWidth - rgbWidth - 5, y + cardHeight - textAreaHeight + (useTwoColumns ? 8 : 11));
-        });
-
-        doc.save("huekai-palette.pdf");
     };
 
     return (
@@ -555,12 +521,20 @@ export const ImageExtractor: React.FC = () => {
                                                             <Eye size={18} />
                                                         </CyberButton>
                                                         <CyberButton
-                                                            onClick={exportToPDF}
+                                                            onClick={() => setIsPreviewOpen(true)}
                                                             className="w-10 h-10 p-0 flex items-center justify-center rounded-full -translate-y-[3px] text-gray-400 hover:text-white"
                                                             variant="dark"
-                                                            title="Export to PDF"
+                                                            title="Preview UI"
                                                         >
-                                                            <Download size={18} />
+                                                            <Monitor size={18} />
+                                                        </CyberButton>
+                                                        <CyberButton
+                                                            onClick={() => setIsExportOpen(true)}
+                                                            className="w-10 h-10 p-0 flex items-center justify-center rounded-full -translate-y-[3px] text-gray-400 hover:text-white"
+                                                            variant="dark"
+                                                            title="Export & Copy"
+                                                        >
+                                                            <Copy size={18} />
                                                         </CyberButton>
                                                     </div>
                                                 )}
@@ -594,6 +568,16 @@ export const ImageExtractor: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Modals */}
+            {isPreviewOpen && palette.length > 0 && (
+                <PalettePreviewModal colors={palette} onClose={() => setIsPreviewOpen(false)} />
+            )}
+
+            {isExportOpen && palette.length > 0 && (
+                <ExportCodeModal colors={palette} onClose={() => setIsExportOpen(false)} />
+            )}
+
             <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .fill-mode-forwards { animation-fill-mode: forwards; }
