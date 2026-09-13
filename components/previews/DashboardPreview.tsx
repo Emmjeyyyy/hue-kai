@@ -1,135 +1,242 @@
 import React from 'react';
 import { ColorData } from '../../types';
 import { getTextColor } from '../PalettePreviewModal';
-import { BarChart3, Users, TrendingUp, ArrowUpRight, ArrowDownRight, MoreHorizontal, Search, Bell } from 'lucide-react';
+import { LayoutDashboard, Pipette, Palette, PieChart, Settings, Code, LogOut, ChevronDown, Circle, Search, Globe2 } from 'lucide-react';
 
 export const DashboardPreview: React.FC<{ colors: ColorData[], isDark?: boolean }> = ({ colors, isDark }) => {
   const c = (i: number) => colors[i % colors.length]?.hex || '#888';
-  const bg = isDark ? '#0f0f11' : '#ffffff';
-  const surface = isDark ? '#1a1a1f' : '#f7f7f8';
-  const surfaceBorder = isDark ? '#2a2a30' : '#ebebee';
-  const textMain = isDark ? '#ececef' : '#18181b';
-  const textMuted = isDark ? '#71717a' : '#a1a1aa';
-  const textSub = isDark ? '#a1a1aa' : '#71717a';
+  const bg = isDark ? '#0a0a0c' : '#f0f2f5'; 
+  const cardBg = isDark ? '#141417' : '#ffffff';
+  const textMain = isDark ? '#ececef' : '#000000';
+  const textMuted = isDark ? '#71717a' : '#555555';
+  const borderCol = isDark ? '#222228' : '#e5e7eb';
 
-  const stats = [
-    { label: 'Revenue', value: '$48.2K', change: '+12.5%', up: true, icon: TrendingUp },
-    { label: 'Users', value: '2,847', change: '+8.1%', up: true, icon: Users },
-    { label: 'Conversion', value: '3.24%', change: '-0.4%', up: false, icon: BarChart3 },
-  ];
-
-  const chartBars = [35, 58, 42, 78, 62, 90, 72, 85, 55, 68, 48, 92];
-
-  const transactions = [
-    { name: 'Sarah Chen', type: 'Payment', amount: '+$840.00', time: '2m ago' },
-    { name: 'Alex Rivera', type: 'Refund', amount: '-$120.00', time: '15m ago' },
-    { name: 'Jordan Lee', type: 'Payment', amount: '+$2,400.00', time: '1h ago' },
-    { name: 'Maria Kim', type: 'Payment', amount: '+$380.00', time: '3h ago' },
-  ];
+  // Sidebar background uses c(0)
+  const sidebarBg = c(0);
+  const sidebarText = getTextColor(c(0));
 
   return (
-    <div className="w-full h-[600px] rounded-xl overflow-hidden shadow-2xl flex" style={{ backgroundColor: bg, color: textMain, fontFamily: '"Product Sans", sans-serif' }}>
+    <div className="w-full h-[600px] rounded-xl overflow-hidden shadow-2xl flex" style={{ backgroundColor: bg, fontFamily: '"Product Sans", sans-serif' }}>
+      
       {/* Sidebar */}
-      <div className="w-56 hidden md:flex flex-col shrink-0 border-r" style={{ backgroundColor: surface, borderColor: surfaceBorder }}>
-        <div className="h-14 flex items-center gap-2.5 px-5 border-b" style={{ borderColor: surfaceBorder }}>
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black" style={{ backgroundColor: c(0), color: getTextColor(c(0)) }}>H</div>
-          <span className="font-semibold text-sm" style={{ color: textMain }}>Workspace</span>
+      <div className="w-[160px] flex flex-col shrink-0" style={{ backgroundColor: sidebarBg, color: sidebarText }}>
+        <div className="h-16 flex flex-col items-center justify-center mt-2 relative">
+          <div className="absolute bottom-0 w-3/4 h-px bg-black/10" />
+          <div className="w-8 h-8 rounded-full flex items-center justify-center mb-1" style={{ backgroundColor: isDark ? '#fff' : '#000' }}>
+             <Pipette size={18} style={{ color: isDark ? '#000' : '#fff' }} />
+          </div>
+          <span className="font-extrabold text-sm tracking-wide">Huekai</span>
         </div>
-        <div className="flex-1 py-3 px-3 space-y-0.5">
-          {['Overview', 'Analytics', 'Customers', 'Settings'].map((item, i) => (
-            <div
-              key={item}
-              className="px-3 py-2 rounded-lg flex items-center gap-2.5 text-[13px] cursor-pointer transition-all"
-              style={{
-                backgroundColor: i === 0 ? c(0) + '14' : 'transparent',
-                color: i === 0 ? c(0) : textSub,
-                fontWeight: i === 0 ? 600 : 400,
-              }}
-            >
-              {item}
+        <div className="flex-1 py-6 flex flex-col gap-1 px-3">
+          {[
+            { name: 'Generators', icon: LayoutDashboard },
+            { name: 'Extractors', icon: Pipette },
+            { name: 'Palettes', icon: Palette },
+            { name: 'Analytics', icon: PieChart },
+            { name: 'Settings', icon: Settings },
+            { name: 'Developer', icon: Code },
+          ].map((item, i) => (
+            <div key={item.name} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-black/10 cursor-pointer text-[12px] font-semibold transition-colors" style={{ backgroundColor: i === 0 ? 'rgba(0,0,0,0.1)' : 'transparent' }}>
+              <item.icon size={15} />
+              {item.name}
             </div>
           ))}
         </div>
+        <div className="p-4 mt-auto">
+          <div className="flex items-center gap-3 px-3 py-2.5 hover:bg-black/10 rounded-lg cursor-pointer text-[12px] font-semibold">
+            <LogOut size={15} />
+            Log out
+          </div>
+        </div>
       </div>
 
-      {/* Main */}
+      {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
-        <div className="h-14 flex items-center justify-between px-6 border-b shrink-0" style={{ borderColor: surfaceBorder }}>
-          <div className="relative">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: textMuted }} />
-            <input
-              type="text"
-              placeholder="Search..."
-              className="pl-8 pr-3 py-1.5 rounded-lg text-xs outline-none border"
-              style={{ backgroundColor: surface, borderColor: surfaceBorder, color: textMain }}
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <Bell size={16} style={{ color: textMuted }} />
-            <div className="w-7 h-7 rounded-full" style={{ background: `linear-gradient(135deg, ${c(0)}, ${c(1)})` }} />
+        <div className="h-14 flex items-center justify-between px-6 bg-white/50 backdrop-blur-sm border-b shrink-0" style={{ borderColor: borderCol, backgroundColor: cardBg }}>
+          <h2 className="text-xl font-bold" style={{ color: textMain }}>Huekai Engine</h2>
+          <div className="flex items-center gap-4">
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none transition-colors">
+                <Search size={12} style={{ color: c(2) }} className="opacity-70 group-focus-within:opacity-100" />
+              </div>
+              <input 
+                type="text" 
+                placeholder="Search palettes, hex codes, keywords" 
+                className="pl-8 pr-4 py-1.5 text-[11px] font-medium rounded-full w-[260px] outline-none transition-all placeholder:opacity-60" 
+                style={{ 
+                  backgroundColor: isDark ? '#222' : '#f3f4f6', 
+                  color: c(2),
+                  border: `1px solid ${isDark ? '#333' : '#e5e7eb'}`
+                }} 
+              />
+            </div>
+            <div className="flex items-center gap-1.5 cursor-pointer">
+              <div className="w-7 h-7 rounded-full flex items-center justify-center text-white" style={{ backgroundColor: c(1) }}>
+                <Palette size={14} />
+              </div>
+              <ChevronDown size={14} style={{ color: textMain }} />
+            </div>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 p-6 overflow-y-auto space-y-6">
-          {/* Stat Cards */}
-          <div className="grid grid-cols-3 gap-4">
-            {stats.map((stat, i) => (
-              <div key={stat.label} className="p-4 rounded-xl border" style={{ backgroundColor: surface, borderColor: surfaceBorder }}>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[11px] font-medium uppercase tracking-wide" style={{ color: textMuted }}>{stat.label}</span>
-                  <stat.icon size={14} style={{ color: c(i) }} />
-                </div>
-                <div className="text-2xl font-bold tracking-tight mb-1">{stat.value}</div>
-                <div className="flex items-center gap-1 text-[11px] font-medium" style={{ color: stat.up ? c(0) : '#ef4444' }}>
-                  {stat.up ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
-                  {stat.change}
-                  <span style={{ color: textMuted }}> vs last month</span>
-                </div>
+        {/* Scrollable Area */}
+        <div className="flex-1 flex flex-col gap-3 overflow-hidden p-4">
+          
+          {/* Stats Row */}
+          <div className="grid grid-cols-4 gap-4">
+            {[
+              { label: 'Palettes Gen', value: '1.2M', col: c(1) },
+              { label: 'Colors Extracted', value: '8,402', col: c(2) },
+              { label: 'Active Creators', value: '12k', col: c(3) },
+              { label: 'Export Rate', value: '86%', col: c(4) || c(0) },
+            ].map((stat) => (
+              <div key={stat.label} className="px-4 py-2.5 rounded-xl flex flex-col justify-center shadow-sm" style={{ backgroundColor: stat.col, color: getTextColor(stat.col) }}>
+                <div className="text-[11px] font-bold mb-0.5 opacity-90">{stat.label}</div>
+                <div className="text-2xl font-extrabold">{stat.value}</div>
               </div>
             ))}
           </div>
 
-          {/* Chart */}
-          <div className="rounded-xl border p-5" style={{ backgroundColor: surface, borderColor: surfaceBorder }}>
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <div className="text-sm font-semibold">Revenue Overview</div>
-                <div className="text-[11px] mt-0.5" style={{ color: textMuted }}>Monthly performance</div>
+          {/* Middle Row (Swapped Layout) */}
+          <div className="grid grid-cols-12 gap-4 h-[210px] shrink-0">
+            {/* Color Distribution Donut */}
+            <div className="col-span-3 rounded-xl p-3 flex flex-col border shadow-sm items-center relative bg-white overflow-hidden" style={{ backgroundColor: cardBg, borderColor: borderCol }}>
+              <div className="w-full flex justify-between items-center mb-2">
+                <span className="text-[14px] font-extrabold" style={{ color: textMain }}>Distribution</span>
               </div>
-              <MoreHorizontal size={16} style={{ color: textMuted }} />
+              
+              <div className="relative w-[110px] h-[110px] shrink-0 rounded-full mt-1" style={{ 
+                background: `conic-gradient(${c(2)} 0% 45%, ${c(1)} 45% 75%, ${c(3)} 75% 85%, ${c(0)} 85% 100%)`
+              }}>
+                <div className="absolute inset-5 rounded-full flex flex-col items-center justify-center shadow-inner" style={{ backgroundColor: cardBg }}>
+                  <span className="text-lg font-black leading-tight" style={{ color: textMain }}>RGB</span>
+                  <span className="text-[9px] font-bold tracking-wider mt-0.5" style={{ color: textMuted }}>MODEL</span>
+                </div>
+              </div>
+
+              <div className="mt-auto w-full grid grid-cols-2 gap-y-1 gap-x-2 text-[8px] font-bold tracking-wide" style={{ color: textMuted }}>
+                <div className="flex items-center gap-1"><Circle size={5} fill={c(0)} stroke="none" /> WARM</div>
+                <div className="flex items-center gap-1"><Circle size={5} fill={c(1)} stroke="none" /> COOL</div>
+                <div className="flex items-center gap-1"><Circle size={5} fill={c(2)} stroke="none" /> NEUTRAL</div>
+                <div className="flex items-center gap-1"><Circle size={5} fill={c(3)} stroke="none" /> ACCENT</div>
+              </div>
             </div>
-            <div className="flex items-end gap-[6px] h-32">
-              {chartBars.map((h, i) => (
-                <div key={i} className="flex-1 rounded-t-[3px] transition-all hover:opacity-80" style={{ height: `${h}%`, backgroundColor: c(i), opacity: 0.85 }} />
-              ))}
+
+            {/* Transactions List -> Recent Exports */}
+            <div className="col-span-4 rounded-xl p-3 flex flex-col border shadow-sm bg-white overflow-hidden" style={{ backgroundColor: cardBg, borderColor: borderCol }}>
+              <span className="text-[14px] font-extrabold mb-3" style={{ color: textMain }}>Recent Exports</span>
+              <div className="flex-1 flex flex-col gap-2">
+                {[
+                  { name: 'Neon Dreams', type: 'CSS', col: c(3), ext: '2m ago' },
+                  { name: 'Forest Walk', type: 'TAILWIND', col: c(2), ext: '5m ago' },
+                  { name: 'Ocean Breeze', type: 'JSON', col: c(1), ext: '15m ago' },
+                  { name: 'Cyberpunk', type: 'CSS', col: c(3), ext: '1h ago' },
+                  { name: 'Pastel Sunset', type: 'SCSS', col: c(0), ext: '3h ago' },
+                ].map((tx, i) => (
+                  <div key={i} className="flex items-center justify-between text-[11px]">
+                    <span className="font-bold" style={{ color: textMain }}>{tx.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="py-0.5 rounded text-[8px] font-black tracking-wider w-[52px] text-center shrink-0" style={{ backgroundColor: tx.col, color: getTextColor(tx.col) }}>{tx.type}</span>
+                      <span className="font-semibold text-right w-10" style={{ color: textMuted }}>{tx.ext}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button className="w-full mt-2 py-1.5 rounded-md text-[11px] font-extrabold transition-opacity hover:opacity-90" style={{ backgroundColor: c(1), color: getTextColor(c(1)) }}>
+                View Export Logs
+              </button>
+            </div>
+
+            {/* Trend -> Generation Trend */}
+            <div className="col-span-5 rounded-xl p-3 flex flex-col border shadow-sm bg-white overflow-hidden" style={{ backgroundColor: cardBg, borderColor: borderCol }}>
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-[14px] font-extrabold" style={{ color: textMain }}>Gen Trend</span>
+                <div className="flex gap-2 text-[8px] font-bold tracking-wider" style={{ color: textMuted }}>
+                  <div className="flex items-center gap-1"><Circle size={6} fill={c(3)} stroke="none" /> AI</div>
+                  <div className="flex items-center gap-1"><Circle size={6} fill={c(2)} stroke="none" /> EXTRACT</div>
+                  <div className="flex items-center gap-1"><Circle size={6} fill={c(0)} stroke="none" /> MANUAL</div>
+                </div>
+              </div>
+              
+              <div className="flex-1 flex justify-between px-1 mt-auto pb-3 relative">
+                {/* Grid lines */}
+                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-3">
+                  {[0,1,2,3,4].map(i => <div key={i} className="w-full h-px" style={{ backgroundColor: isDark ? '#ffffff10' : '#00000008' }} />)}
+                </div>
+                {/* Bars */}
+                {[
+                  [45, 25, 15], [60, 40, 20], [50, 30, 15], [30, 20, 10], [55, 45, 25], [65, 50, 35], [40, 30, 15]
+                ].map((bar, idx) => (
+                  <div key={idx} className="flex gap-[2px] items-end h-[90px] relative z-10">
+                    <div className="w-2 rounded-t-sm" style={{ height: `${bar[0]}%`, backgroundColor: c(3) }} />
+                    <div className="w-2 rounded-t-sm" style={{ height: `${bar[1]}%`, backgroundColor: c(2) }} />
+                    <div className="w-2 rounded-t-sm" style={{ height: `${bar[2]}%`, backgroundColor: c(0) }} />
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-between px-4 text-[10px] font-semibold" style={{ color: textMuted }}>
+                <span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span><span>Jul</span>
+              </div>
             </div>
           </div>
 
-          {/* Transactions */}
-          <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: surface, borderColor: surfaceBorder }}>
-            <div className="px-5 py-3.5 border-b flex items-center justify-between" style={{ borderColor: surfaceBorder }}>
-              <span className="text-sm font-semibold">Recent Transactions</span>
-              <span className="text-[11px] font-medium" style={{ color: c(0) }}>View all</span>
-            </div>
-            {transactions.map((tx, i) => (
-              <div key={i} className="px-5 py-3 flex items-center justify-between border-b last:border-b-0" style={{ borderColor: surfaceBorder }}>
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold" style={{ backgroundColor: c(i) + '18', color: c(i) }}>
-                    {tx.name.split(' ').map(n => n[0]).join('')}
-                  </div>
-                  <div>
-                    <div className="text-[13px] font-medium">{tx.name}</div>
-                    <div className="text-[11px]" style={{ color: textMuted }}>{tx.type}</div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[13px] font-semibold" style={{ color: tx.amount.startsWith('+') ? c(0) : '#ef4444' }}>{tx.amount}</div>
-                  <div className="text-[10px]" style={{ color: textMuted }}>{tx.time}</div>
+          {/* Bottom Row */}
+          <div className="grid grid-cols-2 gap-4 h-[190px] shrink-0">
+            {/* Global Usage */}
+            <div className="rounded-xl p-3 flex flex-col border shadow-sm relative overflow-hidden bg-white" style={{ backgroundColor: cardBg, borderColor: borderCol }}>
+              <div className="flex justify-between items-center z-10">
+                <span className="text-[14px] font-extrabold" style={{ color: textMain }}>Global Usage</span>
+                <div className="flex gap-4 text-[8px] font-bold tracking-wider" style={{ color: textMuted }}>
+                  <div className="flex items-center gap-1.5"><Circle size={6} fill={c(3)} stroke="none" /> WEB</div>
+                  <div className="flex items-center gap-1.5"><Circle size={6} fill={c(1)} stroke="none" /> API</div>
                 </div>
               </div>
-            ))}
+              
+              <div className="absolute inset-0 flex items-center justify-center opacity-[0.85] pointer-events-none mt-4" style={{ color: c(3) }}>
+                <Globe2 size={200} strokeWidth={1} style={{ opacity: 0.2 }} />
+                <Globe2 size={200} strokeWidth={1.5} className="absolute blur-sm" style={{ opacity: 0.1 }} />
+                
+                <div className="absolute w-2 h-2 rounded-full -translate-x-10 -translate-y-6 animate-pulse" style={{ backgroundColor: c(3), boxShadow: `0 0 10px ${c(3)}` }} />
+                <div className="absolute w-1.5 h-1.5 rounded-full translate-x-12 -translate-y-10" style={{ backgroundColor: c(3) }} />
+                <div className="absolute w-2.5 h-2.5 rounded-full translate-x-4 translate-y-6 animate-pulse" style={{ backgroundColor: c(3), boxShadow: `0 0 10px ${c(3)}` }} />
+                <div className="absolute w-1.5 h-1.5 rounded-full -translate-x-16 translate-y-2" style={{ backgroundColor: c(1) }} />
+                <div className="absolute w-2 h-2 rounded-full translate-x-20 translate-y-8 animate-pulse" style={{ backgroundColor: c(1) }} />
+              </div>
+            </div>
+
+            {/* System Logs */}
+            <div className="rounded-xl p-3 flex flex-col border shadow-sm bg-white overflow-hidden" style={{ backgroundColor: cardBg, borderColor: borderCol }}>
+               <div className="flex justify-between items-center mb-3">
+                <span className="text-[14px] font-extrabold" style={{ color: textMain }}>System Logs</span>
+                <div className="px-2 py-0.5 rounded-full text-[8px] font-bold" style={{ backgroundColor: isDark ? '#fff' : '#000', color: isDark ? '#000' : '#fff' }}>Live ▼</div>
+              </div>
+              <div className="flex gap-2 mb-3 text-[10px] font-bold">
+                <span className="px-2.5 py-0.5 rounded-full shadow-sm" style={{ backgroundColor: c(3), color: getTextColor(c(3)) }}>All</span>
+                <span className="px-2.5 py-0.5 rounded-full border transition-colors hover:bg-black/5 cursor-pointer" style={{ borderColor: c(2), color: c(2) }}>Errors</span>
+                <span className="px-2.5 py-0.5 rounded-full border transition-colors hover:bg-black/5 cursor-pointer" style={{ borderColor: c(1), color: c(1) }}>Warnings</span>
+                <span className="px-2.5 py-0.5 rounded-full border transition-colors hover:bg-black/5 cursor-pointer" style={{ borderColor: c(0), color: c(0) }}>Info</span>
+              </div>
+              <div className="flex-1 flex flex-col justify-between">
+                {[
+                  { user: 'api.huekai.com', issue: 'Rate limit exceeded', status: 'WARN', col: c(2) },
+                  { user: 'worker-01', issue: 'Model inference timeout', status: 'ERROR', col: c(1) },
+                  { user: 'web-client', issue: 'Cache invalidated', status: 'INFO', col: c(0) },
+                  { user: 'api.huekai.com', issue: 'High latency', status: 'WARN', col: c(2) },
+                ].map((ticket, i) => (
+                  <div key={i} className="flex items-center justify-between text-[10px]">
+                    <div className="flex items-center gap-2">
+                      <Circle size={8} fill={c(3)} stroke="none" />
+                      <span className="font-medium" style={{ color: textMuted }}>{ticket.user}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-bold w-[110px]" style={{ color: textMain }}>{ticket.issue}</span>
+                      <span className="px-1.5 py-0.5 rounded text-[8px] font-black tracking-wide w-[40px] text-center" style={{ backgroundColor: ticket.col, color: getTextColor(ticket.col) }}>{ticket.status}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>

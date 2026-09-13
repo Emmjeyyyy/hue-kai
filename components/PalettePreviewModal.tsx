@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, LayoutDashboard, LogIn, CreditCard, Box, RefreshCw, Moon, Sun, LayoutTemplate } from 'lucide-react';
+import { X, LayoutDashboard, LogIn, CreditCard, Box, RefreshCw, Moon, Sun, LayoutTemplate, Contact } from 'lucide-react';
 import { ColorData } from '../types';
 
 import { DashboardPreview } from './previews/DashboardPreview';
@@ -8,6 +8,7 @@ import { AuthFormPreview } from './previews/AuthFormPreview';
 import { PricingCardPreview } from './previews/PricingCardPreview';
 import { CardPreview } from './previews/CardPreview';
 import { LandingPagePreview } from './previews/LandingPagePreview';
+import { BusinessCardPreview } from './previews/BusinessCardPreview';
 
 interface PalettePreviewModalProps {
   colors: ColorData[];
@@ -17,6 +18,7 @@ interface PalettePreviewModalProps {
 const PREVIEWS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, component: DashboardPreview },
   { id: 'landing', label: 'Landing Page', icon: LayoutTemplate, component: LandingPagePreview },
+  { id: 'business-card', label: 'Business Card', icon: Contact, component: BusinessCardPreview },
   { id: 'auth', label: 'Login Form', icon: LogIn, component: AuthFormPreview },
   { id: 'pricing', label: 'Pricing Cards', icon: CreditCard, component: PricingCardPreview },
   { id: 'card', label: 'Product Card', icon: Box, component: CardPreview },

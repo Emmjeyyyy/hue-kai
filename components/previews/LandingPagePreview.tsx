@@ -40,29 +40,32 @@ export const LandingPagePreview: React.FC<{ colors: ColorData[], isDark: boolean
         </nav>
 
         {/* Hero */}
-        <div className="px-6 py-16 text-center max-w-lg mx-auto">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold mb-6 border" style={{ borderColor: borderCol, color: c(0) }}>
-            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: c(0) }} />
-            Now available
-            <ChevronRight size={10} />
-          </div>
+        <div className="relative overflow-hidden" style={{ backgroundColor: c(1) + '10' }}>
+          <div className="absolute top-0 inset-x-0 h-px opacity-50" style={{ background: `linear-gradient(90deg, transparent, ${c(1)}, transparent)` }} />
+          <div className="px-6 py-16 text-center max-w-lg mx-auto relative z-10">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold mb-6 border bg-white/5 backdrop-blur-sm" style={{ borderColor: borderCol, color: c(0) }}>
+              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: c(0) }} />
+              Now available
+              <ChevronRight size={10} />
+            </div>
 
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4 leading-[1.15]">
-            Build faster with{' '}
-            <span style={{ color: c(0) }}>better</span> tools
-          </h1>
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4 leading-[1.15]">
+              Build faster with{' '}
+              <span style={{ color: c(0) }}>better</span> tools
+            </h1>
 
-          <p className="text-[13px] leading-relaxed mb-8 max-w-sm mx-auto" style={{ color: textMuted }}>
-            Ship quality products 10× faster. Trusted by thousands of teams worldwide.
-          </p>
+            <p className="text-[13px] leading-relaxed mb-8 max-w-sm mx-auto" style={{ color: textMuted }}>
+              Ship quality products 10× faster. Trusted by thousands of teams worldwide.
+            </p>
 
-          <div className="flex items-center justify-center gap-3">
-            <button className="px-5 py-2.5 rounded-lg text-[12px] font-semibold flex items-center gap-1.5" style={{ backgroundColor: c(0), color: getTextColor(c(0)) }}>
-              Start free <ArrowRight size={13} />
-            </button>
-            <button className="px-5 py-2.5 rounded-lg text-[12px] font-semibold border" style={{ borderColor: borderCol, color: textMain }}>
-              Learn more
-            </button>
+            <div className="flex items-center justify-center gap-3">
+              <button className="px-5 py-2.5 rounded-lg text-[12px] font-semibold flex items-center gap-1.5 shadow-lg" style={{ backgroundColor: c(0), color: getTextColor(c(0)) }}>
+                Start free <ArrowRight size={13} />
+              </button>
+              <button className="px-5 py-2.5 rounded-lg text-[12px] font-semibold border bg-white/5 backdrop-blur-sm" style={{ borderColor: borderCol, color: textMain }}>
+                Learn more
+              </button>
+            </div>
           </div>
         </div>
 
