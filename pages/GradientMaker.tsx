@@ -1196,7 +1196,7 @@ export const GradientMaker: React.FC = () => {
                   className={`-translate-y-[3px] w-7 h-7 flex items-center justify-center rounded-full border transition-all ${
                     lockStopCount
                       ? 'border-chroma-cyan/60 bg-chroma-cyan/10 text-chroma-cyan shadow-[0_0_6px_rgba(0,255,255,0.3)]'
-                      : 'border-white/10 text-white/30 hover:text-white/60 hover:border-white/20'
+                      : 'border-white/30 bg-[#111] text-white/60 hover:text-white hover:border-white/50'
                   }`}
                 >
                   {lockStopCount ? <Lock size={11} /> : <Unlock size={11} />}
