@@ -84,12 +84,13 @@ export const DashboardPreview: React.FC<{ colors: ColorData[], isDark?: boolean 
         <div className="flex-1 flex flex-col gap-3 overflow-hidden p-4">
           
           {/* Stats Row */}
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-5 gap-4">
             {[
               { label: 'Palettes Gen', value: '1.2M', col: c(1) },
               { label: 'Colors Extracted', value: '8,402', col: c(2) },
               { label: 'Active Creators', value: '12k', col: c(3) },
               { label: 'Export Rate', value: '86%', col: c(4) || c(0) },
+              { label: 'Pro Users', value: '3.4k', col: c(5) || c(1) },
             ].map((stat) => (
               <div key={stat.label} className="px-4 py-2.5 rounded-xl flex flex-col justify-center shadow-sm" style={{ backgroundColor: stat.col, color: getTextColor(stat.col) }}>
                 <div className="text-[11px] font-bold mb-0.5 opacity-90">{stat.label}</div>
@@ -143,9 +144,6 @@ export const DashboardPreview: React.FC<{ colors: ColorData[], isDark?: boolean 
                   </div>
                 ))}
               </div>
-              <button className="w-full mt-2 py-1.5 rounded-md text-[11px] font-extrabold transition-opacity hover:opacity-90" style={{ backgroundColor: c(1), color: getTextColor(c(1)) }}>
-                View Export Logs
-              </button>
             </div>
 
             {/* Trend -> Generation Trend */}
@@ -185,7 +183,7 @@ export const DashboardPreview: React.FC<{ colors: ColorData[], isDark?: boolean 
           <div className="grid grid-cols-2 gap-4 h-[190px] shrink-0">
             {/* Global Usage */}
             <div className="rounded-xl p-3 flex flex-col border shadow-sm relative overflow-hidden bg-white" style={{ backgroundColor: cardBg, borderColor: borderCol }}>
-              <div className="flex justify-between items-center z-10">
+              <div className="flex justify-between items-center z-10 mb-2">
                 <span className="text-[14px] font-extrabold" style={{ color: textMain }}>Global Usage</span>
                 <div className="flex gap-4 text-[8px] font-bold tracking-wider" style={{ color: textMuted }}>
                   <div className="flex items-center gap-1.5"><Circle size={6} fill={c(3)} stroke="none" /> WEB</div>
@@ -193,15 +191,62 @@ export const DashboardPreview: React.FC<{ colors: ColorData[], isDark?: boolean 
                 </div>
               </div>
               
-              <div className="absolute inset-0 flex items-center justify-center opacity-[0.85] pointer-events-none mt-4" style={{ color: c(3) }}>
-                <Globe2 size={200} strokeWidth={1} style={{ opacity: 0.2 }} />
-                <Globe2 size={200} strokeWidth={1.5} className="absolute blur-sm" style={{ opacity: 0.1 }} />
-                
-                <div className="absolute w-2 h-2 rounded-full -translate-x-10 -translate-y-6 animate-pulse" style={{ backgroundColor: c(3), boxShadow: `0 0 10px ${c(3)}` }} />
-                <div className="absolute w-1.5 h-1.5 rounded-full translate-x-12 -translate-y-10" style={{ backgroundColor: c(3) }} />
-                <div className="absolute w-2.5 h-2.5 rounded-full translate-x-4 translate-y-6 animate-pulse" style={{ backgroundColor: c(3), boxShadow: `0 0 10px ${c(3)}` }} />
-                <div className="absolute w-1.5 h-1.5 rounded-full -translate-x-16 translate-y-2" style={{ backgroundColor: c(1) }} />
-                <div className="absolute w-2 h-2 rounded-full translate-x-20 translate-y-8 animate-pulse" style={{ backgroundColor: c(1) }} />
+              <div className="flex-1 w-full flex flex-col mt-2">
+                <div className="flex-1 flex w-full">
+                  {/* Y-Axis Labels */}
+                  <div className="flex flex-col justify-between text-[8px] font-semibold pr-2 py-1 w-6 shrink-0 text-right" style={{ color: textMuted }}>
+                    <span>10k</span>
+                    <span>5k</span>
+                    <span>0</span>
+                  </div>
+                  {/* Graph Area & X-Axis */}
+                  <div className="flex-1 flex flex-col min-w-0">
+                    <div className="flex-1 relative border-l border-b" style={{ borderColor: isDark ? '#333' : '#e5e7eb' }}>
+                      <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="absolute inset-0 w-full h-full overflow-visible">
+                        {/* Web Line */}
+                        <path 
+                          d="M 5 30 C 12.5 30, 12.5 20, 20 20 C 27.5 20, 27.5 25, 35 25 C 42.5 25, 42.5 8, 50 8 C 57.5 8, 57.5 28, 65 28 C 72.5 28, 72.5 12, 80 12 C 87.5 12, 87.5 22, 95 22" 
+                          fill="none" 
+                          stroke={c(3)} 
+                          strokeWidth="1.5" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round" 
+                          className="drop-shadow-sm opacity-90"
+                        />
+                        {/* API Line */}
+                        <path 
+                          d="M 5 25 C 12.5 25, 12.5 28, 20 28 C 27.5 28, 27.5 18, 35 18 C 42.5 18, 42.5 15, 50 15 C 57.5 15, 57.5 22, 65 22 C 72.5 22, 72.5 28, 80 28 C 87.5 28, 87.5 10, 95 10" 
+                          fill="none" 
+                          stroke={c(1)} 
+                          strokeWidth="1.5" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round" 
+                          className="drop-shadow-sm opacity-80"
+                        />
+                        {/* Web Dots (Peaks only) */}
+                        {[
+                          [50, 8]
+                        ].map((pt, i) => (
+                          <circle key={`w-${i}`} cx={pt[0]} cy={pt[1]} r="1.5" fill={cardBg} stroke={c(3)} strokeWidth="1" />
+                        ))}
+                        {/* API Dots (Peaks only) */}
+                        {[
+                          [95, 10]
+                        ].map((pt, i) => (
+                          <circle key={`a-${i}`} cx={pt[0]} cy={pt[1]} r="1.5" fill={cardBg} stroke={c(1)} strokeWidth="1" />
+                        ))}
+                      </svg>
+                    </div>
+                    {/* X-Axis Labels */}
+                    <div className="relative w-full h-3 mt-1.5">
+                      {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => (
+                        <span key={day} className="absolute text-[8px] font-semibold -translate-x-1/2" style={{ left: `${5 + i * 15}%`, color: textMuted }}>
+                          {day}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -209,7 +254,6 @@ export const DashboardPreview: React.FC<{ colors: ColorData[], isDark?: boolean 
             <div className="rounded-xl p-3 flex flex-col border shadow-sm bg-white overflow-hidden" style={{ backgroundColor: cardBg, borderColor: borderCol }}>
                <div className="flex justify-between items-center mb-3">
                 <span className="text-[14px] font-extrabold" style={{ color: textMain }}>System Logs</span>
-                <div className="px-2 py-0.5 rounded-full text-[8px] font-bold" style={{ backgroundColor: isDark ? '#fff' : '#000', color: isDark ? '#000' : '#fff' }}>Live ▼</div>
               </div>
               <div className="flex gap-2 mb-3 text-[10px] font-bold">
                 <span className="px-2.5 py-0.5 rounded-full shadow-sm" style={{ backgroundColor: c(3), color: getTextColor(c(3)) }}>All</span>

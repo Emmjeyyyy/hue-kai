@@ -59,13 +59,13 @@ export const BusinessCardPreview: React.FC<{ colors: ColorData[], isDark?: boole
           style={{ backgroundColor: c(3) || c(0), transform: 'rotate(15deg)' }}
         />
         
-        {/* Frosted Glassmorphism Cube */}
+        {/* Solid Diamond Shape */}
         <div 
-          className="absolute bottom-[60px] right-[40px] w-[160px] h-[160px] rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.15)] border border-white/20 backdrop-blur-md flex items-center justify-center"
-          style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)', transform: 'rotate(-12deg)' }}
+          className="absolute bottom-[80px] right-[60px] w-[120px] h-[120px] rounded-3xl shadow-2xl flex items-center justify-center"
+          style={{ backgroundColor: c(4) || c(1), transform: 'rotate(45deg)' }}
         >
-          {/* Inner accent ring */}
-          <div className="w-20 h-20 rounded-full border-[6px] opacity-60" style={{ borderColor: c(0) }} />
+          {/* Inner shape */}
+          <div className="w-12 h-12 rounded-full" style={{ backgroundColor: c(0) }} />
         </div>
       </div>
     </div>
