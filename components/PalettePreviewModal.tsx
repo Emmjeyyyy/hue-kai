@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, LayoutDashboard, LogIn, CreditCard, Box, RefreshCw, Moon, Sun, LayoutTemplate, Contact } from 'lucide-react';
+import { X, LayoutDashboard, LogIn, CreditCard, Box, RefreshCw, Moon, Sun, LayoutTemplate, Contact, Shapes, Smile } from 'lucide-react';
 import { ColorData } from '../types';
 
 import { DashboardPreview } from './previews/DashboardPreview';
@@ -9,6 +9,10 @@ import { PricingCardPreview } from './previews/PricingCardPreview';
 import { CardPreview } from './previews/CardPreview';
 import { LandingPagePreview } from './previews/LandingPagePreview';
 import { BusinessCardPreview } from './previews/BusinessCardPreview';
+import { ArtPreview } from './previews/ArtPreview';
+import { AbstractFacesPreview } from './previews/AbstractFacesPreview';
+import { MascotPreview } from './previews/MascotPreview';
+import { Palette } from 'lucide-react';
 
 interface PalettePreviewModalProps {
   colors: ColorData[];
@@ -19,6 +23,9 @@ const PREVIEWS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, component: DashboardPreview },
   { id: 'landing', label: 'Landing Page', icon: LayoutTemplate, component: LandingPagePreview },
   { id: 'business-card', label: 'Business Card', icon: Contact, component: BusinessCardPreview },
+  { id: 'art', label: 'Geometric Art', icon: Palette, component: ArtPreview },
+  { id: 'abstract-faces', label: 'Abstract Faces', icon: Shapes, component: AbstractFacesPreview },
+  { id: 'mascot', label: 'Monster Mascot', icon: Smile, component: MascotPreview },
   { id: 'auth', label: 'Login Form', icon: LogIn, component: AuthFormPreview },
   { id: 'pricing', label: 'Pricing Cards', icon: CreditCard, component: PricingCardPreview },
   { id: 'card', label: 'Product Card', icon: Box, component: CardPreview },
