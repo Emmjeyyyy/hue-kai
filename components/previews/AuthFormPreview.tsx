@@ -25,68 +25,78 @@ export const AuthFormPreview: React.FC<{ colors: ColorData[], isDark?: boolean }
       <div className="w-full max-w-[760px] h-[480px] rounded-2xl flex overflow-hidden shadow-2xl relative z-10 mx-6" style={{ backgroundColor: panelBg }}>
         
         {/* Left Panel: Form */}
-        <div className="w-full sm:w-1/2 p-8 md:p-10 flex flex-col justify-center h-full relative z-10">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-black tracking-tight" style={{ color: textMain }}>
-              SIGN <span style={{ color: c(0) }}>IN</span>
+        <div className="w-full sm:w-1/2 p-8 md:p-12 flex flex-col justify-center h-full relative z-10">
+          <div className="mb-8">
+            <h2 className="text-3xl font-bold tracking-tight" style={{ color: textMain }}>
+              Sign In
             </h2>
           </div>
 
           <form className="flex flex-col gap-4" onSubmit={e => e.preventDefault()}>
-            <input
-              type="text"
-              placeholder="Username or Email"
-              className="w-full px-4 py-3 rounded text-[12px] font-medium border outline-none transition-colors focus:border-opacity-100 placeholder:opacity-60"
-              style={{ backgroundColor: inputBg, borderColor: borderCol, color: textMain }}
-            />
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none opacity-50" style={{ color: textMain }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              </div>
+              <input
+                type="text"
+                placeholder="Username or email"
+                className="w-full pl-11 pr-5 py-3.5 rounded-full text-[13px] font-semibold border-2 outline-none transition-colors focus:border-opacity-100 placeholder:opacity-60"
+                style={{ backgroundColor: inputBg, borderColor: borderCol, color: textMain }}
+              />
+            </div>
             
-            <input
-              type="password"
-              placeholder="Password"
-              className="w-full px-4 py-3 rounded text-[12px] font-medium border outline-none transition-colors focus:border-opacity-100 placeholder:opacity-60"
-              style={{ backgroundColor: inputBg, borderColor: borderCol, color: textMain }}
-            />
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none opacity-50" style={{ color: textMain }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </div>
+              <input
+                type="password"
+                placeholder="Password"
+                className="w-full pl-11 pr-5 py-3.5 rounded-full text-[13px] font-semibold border-2 outline-none transition-colors focus:border-opacity-100 placeholder:opacity-60"
+                style={{ backgroundColor: inputBg, borderColor: borderCol, color: textMain }}
+              />
+            </div>
 
-            <div className="flex items-center justify-between text-[11px] font-semibold mt-1">
-              <label className="flex items-center gap-2 cursor-pointer" style={{ color: textMuted }}>
-                <input type="checkbox" className="w-3.5 h-3.5 rounded-sm accent-current" style={{ accentColor: c(0) }} defaultChecked />
-                Stay signed in
+            <div className="flex items-center justify-between text-[12px] font-bold mt-1 px-2">
+              <label className="flex items-center gap-2 cursor-pointer opacity-80 hover:opacity-100 transition-opacity" style={{ color: textMain }}>
+                <div className="relative flex items-center justify-center">
+                  <input type="checkbox" className="peer appearance-none w-4 h-4 rounded-sm border-2 transition-colors cursor-pointer" style={{ borderColor: borderCol, backgroundColor: inputBg }} defaultChecked />
+                  <div className="absolute opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none w-2 h-2 rounded-[2px]" style={{ backgroundColor: c(0) }} />
+                </div>
+                Remember me
               </label>
-              <a href="#" className="hover:underline" style={{ color: c(0) }}>Forgot Password?</a>
+              <a href="#" className="hover:underline opacity-80 transition-opacity hover:opacity-100" style={{ color: textMain }}>Forgot password?</a>
             </div>
 
             <button
-              className="w-full py-3 mt-2 rounded font-bold text-[12px] tracking-wide transition-transform hover:-translate-y-0.5 active:translate-y-0"
-              style={{ backgroundColor: c(0), color: getTextColor(c(0)) }}
+              className="w-full py-4 mt-6 rounded-full font-bold text-[14px] tracking-wide transition-all hover:scale-[1.02] active:scale-100 shadow-lg"
+              style={{ background: `linear-gradient(135deg, ${c(0)}, ${c(1) || c(0)})`, color: getTextColor(c(0)) }}
             >
-              SIGN IN
+              Sign In
             </button>
           </form>
 
-          {/* Divider */}
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t" style={{ borderColor: borderCol }} /></div>
-            <div className="relative flex justify-center">
-              <span className="text-[11px] px-3 font-medium" style={{ backgroundColor: panelBg, color: textMuted }}>Or Sign In with</span>
-            </div>
-          </div>
-
-          {/* Social */}
-          <div className="flex items-center justify-center gap-4 mb-8">
-            <button className="w-9 h-9 rounded-full border flex items-center justify-center transition-colors hover:bg-black/5" style={{ borderColor: borderCol, color: textMain }}>
-              <Chrome size={14} />
+          {/* Passwordless Login */}
+          <div className="mt-6 flex justify-center gap-4">
+            <button className="w-11 h-11 rounded-full border-2 flex items-center justify-center transition-transform hover:scale-110 shadow-sm" style={{ borderColor: borderCol, backgroundColor: inputBg }} title="Sign in with Google">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="22" height="22">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.7 17.74 9.5 24 9.5z"/>
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+              </svg>
             </button>
-            <button className="w-9 h-9 rounded-full border flex items-center justify-center transition-colors hover:bg-black/5" style={{ borderColor: borderCol, color: textMain }}>
-              <Github size={14} />
+            <button className="w-11 h-11 rounded-full border-2 flex items-center justify-center transition-transform hover:scale-110 shadow-sm" style={{ borderColor: borderCol, backgroundColor: inputBg }} title="Sign in with Facebook">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
             </button>
-            <button className="w-9 h-9 rounded-full border flex items-center justify-center transition-colors hover:bg-black/5" style={{ borderColor: borderCol, color: textMain }}>
-              <Palette size={14} />
+            <button className="w-11 h-11 rounded-full border-2 flex items-center justify-center transition-transform hover:scale-110 shadow-sm" style={{ borderColor: borderCol, backgroundColor: inputBg }} title="Sign in with X">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill={isDark ? "#ffffff" : "#000000"}><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z" /></svg>
             </button>
           </div>
 
-          {/* Footer Box */}
-          <div className="mt-auto w-full py-3 rounded text-center text-[11px] font-medium border" style={{ backgroundColor: c(0) + '15', borderColor: borderCol, color: textMuted }}>
-            Not a member? <a href="#" className="font-bold hover:underline" style={{ color: c(0) }}>Sign Up</a>
+          {/* Footer Text */}
+          <div className="mt-8 text-center text-[12px] font-semibold" style={{ color: textMuted }}>
+            New here? <a href="#" className="hover:underline transition-colors" style={{ color: c(0) }}>Create an Account</a>
           </div>
         </div>
 

@@ -61,7 +61,7 @@ export const BusinessCardPreview: React.FC<{ colors: ColorData[], isDark?: boole
         
         {/* Solid Diamond Shape */}
         <div 
-          className="absolute bottom-[80px] right-[60px] w-[120px] h-[120px] rounded-3xl shadow-2xl flex items-center justify-center"
+          className="absolute bottom-[80px] right-[120px] w-[120px] h-[120px] rounded-3xl shadow-2xl flex items-center justify-center"
           style={{ backgroundColor: c(4) || c(1), transform: 'rotate(45deg)' }}
         >
           {/* Inner shape */}

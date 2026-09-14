@@ -12,9 +12,9 @@ export const PricingCardPreview: React.FC<{ colors: ColorData[], isDark?: boolea
   const textMuted = isDark ? '#71717a' : '#a1a1aa';
 
   const tiers = [
-    { name: 'Starter', price: '$9', desc: 'For individuals', features: ['5 projects', '1GB storage', 'Basic analytics', 'Email support'] },
-    { name: 'Pro', price: '$29', desc: 'For growing teams', features: ['Unlimited projects', '50GB storage', 'Advanced analytics', 'Priority support', 'API access'] },
-    { name: 'Enterprise', price: '$99', desc: 'For organizations', features: ['Everything in Pro', '500GB storage', 'Custom integrations', 'Dedicated manager', 'SSO & SAML', 'SLA guarantee'] },
+    { name: 'Starter', price: '$9', desc: 'For color enthusiasts', features: ['Unlimited palettes', 'Basic extraction', 'Standard exports', 'Community access'] },
+    { name: 'Pro', price: '$29', desc: 'For creative professionals', features: ['AI color generation', 'Advanced extraction', 'Tailwind & CSS exports', 'Custom gradients', 'Priority support'] },
+    { name: 'Enterprise', price: '$99', desc: 'For design teams', features: ['Everything in Pro', 'Team collaboration', 'API access', 'Custom integrations', 'Dedicated manager', 'SSO'] },
   ];
 
   // The middle card (Pro) is the "featured" one
@@ -32,7 +32,7 @@ export const PricingCardPreview: React.FC<{ colors: ColorData[], isDark?: boolea
       </div>
 
       {/* Cards */}
-      <div className="flex gap-4 items-stretch z-10 w-full max-w-3xl justify-center">
+      <div className="flex gap-6 items-stretch z-10 w-full max-w-5xl justify-center px-4">
         {tiers.map((tier, i) => {
           const isFeatured = i === featuredIdx;
           const accentColor = c(i);
@@ -40,52 +40,68 @@ export const PricingCardPreview: React.FC<{ colors: ColorData[], isDark?: boolea
           return (
             <div
               key={tier.name}
-              className={`flex-1 max-w-[240px] rounded-2xl flex flex-col p-6 relative transition-all ${isFeatured ? 'shadow-xl -translate-y-2' : 'shadow-sm'}`}
+              className={`flex-1 max-w-[300px] rounded-2xl flex flex-col relative transition-all ${
+                isFeatured ? 'scale-105 z-20' : 'z-10'
+              } ${!isDark ? (isFeatured ? 'shadow-2xl' : 'shadow-lg') : 'shadow-none'}`}
               style={{
                 backgroundColor: isFeatured ? accentColor : cardBg,
                 color: isFeatured ? getTextColor(accentColor) : textMain,
                 border: isFeatured ? 'none' : `1px solid ${borderCol}`,
               }}
             >
-              {isFeatured && (
-                <div
-                  className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[10px] font-bold tracking-wide flex items-center gap-1 shadow-md"
-                  style={{ backgroundColor: cardBg, color: accentColor }}
-                >
-                  <Sparkles size={10} /> POPULAR
+              {/* Curved Header Background for non-featured only */}
+              {!isFeatured && (
+                <div className="absolute top-0 left-0 w-full h-[110px] z-0 overflow-hidden rounded-t-2xl">
+                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full drop-shadow-sm">
+                    <path d="M0,0 L100,0 L100,65 C65,100 35,45 0,75 Z" fill={accentColor} />
+                  </svg>
                 </div>
               )}
 
-              <div className="mb-5">
-                <h3 className="text-sm font-semibold mb-0.5">{tier.name}</h3>
-                <p className={`text-[11px] ${isFeatured ? 'opacity-80' : ''}`} style={{ color: isFeatured ? undefined : textMuted }}>{tier.desc}</p>
+              {isFeatured && (
+                <div
+                  className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[10px] font-bold tracking-wide flex items-center gap-1 shadow-md z-30"
+                  style={{ backgroundColor: cardBg, color: textMain }}
+                >
+                  <Sparkles size={10} style={{ color: accentColor }} /> POPULAR
+                </div>
+              )}
+
+              {/* Header Content */}
+              <div className="p-6 pb-2 relative z-10 flex justify-between items-start gap-2" style={{ color: getTextColor(accentColor) }}>
+                <div className="min-w-0">
+                  <h3 className={`text-sm font-semibold mb-0.5 ${isFeatured ? 'text-xl' : ''} truncate`}>{tier.name}</h3>
+                  <p className="text-[11px] opacity-90 whitespace-nowrap">{tier.desc}</p>
+                </div>
+                <div className="text-right flex items-baseline gap-1 shrink-0 whitespace-nowrap">
+                  <span className={`${isFeatured ? 'text-4xl' : 'text-3xl'} font-bold tracking-tight leading-none`}>{tier.price}</span>
+                  <span className="text-[10px] font-semibold opacity-80 uppercase tracking-widest whitespace-nowrap">/ mo</span>
+                </div>
               </div>
 
-              <div className="mb-5">
-                <span className="text-3xl font-bold tracking-tight">{tier.price}</span>
-                <span className={`text-[12px] ${isFeatured ? 'opacity-70' : ''}`} style={{ color: isFeatured ? undefined : textMuted }}>/mo</span>
+              {/* Body Content */}
+              <div className="px-6 pb-6 pt-4 relative z-10 flex-1 flex flex-col mt-4">
+                <ul className="space-y-3 flex-1 mb-6 font-medium">
+                  {tier.features.map(feat => (
+                    <li key={feat} className="flex items-center gap-2 text-[12px]">
+                      <Check size={13} style={{ color: isFeatured ? getTextColor(accentColor) : textMain }} strokeWidth={3} />
+                      <span style={{ color: isFeatured ? getTextColor(accentColor) : textMain, opacity: isFeatured ? 0.9 : 0.85 }}>
+                        {feat}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  className="w-full py-2.5 rounded-lg text-[12px] font-bold transition-transform hover:scale-[1.02] active:scale-100 shadow-md mt-auto"
+                  style={{
+                    backgroundColor: isFeatured ? (getTextColor(accentColor) === '#000000' ? '#ffffff' : '#111111') : accentColor,
+                    color: isFeatured ? (getTextColor(accentColor) === '#000000' ? '#000000' : '#ffffff') : getTextColor(accentColor),
+                  }}
+                >
+                  Get started
+                </button>
               </div>
-
-              <button
-                className="w-full py-2 rounded-lg text-[12px] font-semibold mb-5 transition-opacity hover:opacity-90"
-                style={{
-                  backgroundColor: isFeatured ? (isDark ? '#fff' : '#18181b') : accentColor,
-                  color: isFeatured ? (isDark ? '#18181b' : '#fff') : getTextColor(accentColor),
-                }}
-              >
-                Get started
-              </button>
-
-              <ul className="space-y-2.5 flex-1">
-                {tier.features.map(feat => (
-                  <li key={feat} className="flex items-center gap-2 text-[12px]">
-                    <Check size={13} className={isFeatured ? 'opacity-90' : ''} style={{ color: isFeatured ? getTextColor(accentColor) : accentColor }} />
-                    <span className={isFeatured ? 'opacity-90' : ''} style={{ color: isFeatured ? undefined : textMuted }}>
-                      {feat}
-                    </span>
-                  </li>
-                ))}
-              </ul>
             </div>
           );
         })}
