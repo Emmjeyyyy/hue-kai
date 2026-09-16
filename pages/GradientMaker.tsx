@@ -7,10 +7,12 @@ import * as htmlToImage from 'html-to-image';
 import { Layout } from '../components/Layout';
 import { CyberButton } from '../components/UI';
 import { hexToRgb, rgbToHex } from '../utils/colorUtils';
+import Topography from '../components/Topography';
+import SteppedBars from '../components/SteppedBars';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type GradientType = 'linear' | 'radial';
+type GradientType = 'linear' | 'radial' | 'animated';
 
 interface GradientStop {
   id: string;
@@ -24,6 +26,7 @@ interface GradientState {
   angle: number;
   radialShape: 'circle' | 'ellipse';
   radialPos: string;
+  animatedPresetId?: string;
 }
 
 // ─── Palette presets for auto-generation ─────────────────────────────────────
@@ -57,6 +60,106 @@ const LINEAR_PRESETS = [
   { name: 'Neon Plasma', angle: 135, stops: [{ hex: '#0B0F19', position: 0 }, { hex: '#0033FF', position: 20 }, { hex: '#00FFFF', position: 40 }, { hex: '#CCFF00', position: 60 }, { hex: '#FFFF00', position: 80 }, { hex: '#FFFFFF', position: 100 }] },
   { name: 'Midnight Flare', angle: 135, stops: [{ hex: '#2A0845', position: 0 }, { hex: '#7B2CBF', position: 30 }, { hex: '#FF007F', position: 60 }, { hex: '#FF5E00', position: 85 }, { hex: '#FFD000', position: 100 }] },
 ];
+
+export const getAnimatedPresets = (stops: GradientStop[]) => {
+  const sorted = [...stops].sort((a,b) => a.position - b.position);
+  const c1 = sorted[0]?.hex || '#000000';
+  const c2 = sorted[Math.floor(sorted.length / 3)]?.hex || '#555555';
+  const c3 = sorted[Math.floor(2 * sorted.length / 3)]?.hex || '#aaaaaa';
+  const c4 = sorted[sorted.length - 1]?.hex || '#ffffff';
+  
+  const {r: r1, g: g1, b: b1} = hexToRgb(c1);
+  const {r: r2, g: g2, b: b2} = hexToRgb(c2);
+  const {r: r4, g: g4, b: b4} = hexToRgb(c4);
+
+  // Helper for Wavy Layers preset
+  const getWavySvg = (gradientStops: GradientStop[]) => {
+    const sortedStops = [...gradientStops].sort((a, b) => a.position - b.position);
+    const n = sortedStops.length;
+    const spacing = 800 / (n + 1);
+    const A = 60; // Amplitude
+    let paths = '';
+    for (let i = 1; i < n; i++) {
+      const y = i * spacing + 50; 
+      const amp = A * (i % 2 === 0 ? 1 : -1); 
+      paths += `<path d="M -400,${y} Q -300,${y+amp} -200,${y} T 0,${y} T 200,${y} T 400,${y} T 600,${y} T 800,${y} T 1000,${y} T 1200,${y} L 1200,2000 L -400,2000 Z" fill="${sortedStops[i].hex}" />`;
+    }
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" preserveAspectRatio="none"><defs><filter id="wavyBlur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="40" /></filter></defs><rect width="100%" height="100%" fill="${sortedStops[0].hex}" /><g filter="url(#wavyBlur)">${paths}</g></svg>`;
+    return `url('data:image/svg+xml,${encodeURIComponent(svg)}')`;
+  };
+
+  // Helper for Stepped Bars preset - Domino effect wave
+  const indices = [5, 4, 3, 2, 1, 0];
+  const steppedBgImages = indices.map(() => 
+    `linear-gradient(90deg, rgba(0,0,0,0.3) 0%, transparent 30%), linear-gradient(180deg, ${c1}, ${c4})`
+  ).join(',\n  ');
+
+  const steppedPos = indices.map(i => 
+    `${i * 20}% bottom, ${i * 20}% bottom`
+  ).join(',\n  ');
+
+  const getDominoBaseSize = () => {
+    const mids = [17, 32, 47, 62, 77, 90];
+    const heights = mids.map((mid, i) => (mid + 5 * Math.sin(-i * (Math.PI / 3) + Math.PI / 2)).toFixed(1));
+    return indices.map(i => `17.2% ${heights[i]}%, 17.2% ${heights[i]}%`).join(',\n  ');
+  };
+
+  const generateDominoKeyframes = () => {
+    const mids = [17, 32, 47, 62, 77, 90];
+    const steps = 40;
+    const frames = [];
+    for (let step = 0; step <= steps; step++) {
+      const t = step / steps;
+      const pct = step === 0 ? '0%, 100%' : step === steps ? null : +(t * 100).toFixed(1) + '%';
+      if (!pct) continue;
+      const heights = mids.map((mid, i) => (mid + 5 * Math.sin(t * Math.PI * 2 - i * (Math.PI / 3) + Math.PI / 2)).toFixed(1));
+      const sizeStr = indices.map(i => `17.2% ${heights[i]}%, 17.2% ${heights[i]}%`).join(',\n      ');
+      frames.push(`  ${pct} {\n    background-size: \n      ${sizeStr};\n  }`);
+    }
+    return `@keyframes stepScroll {\n${frames.join('\n')}\n}`;
+  };
+
+  return [
+    {
+      id: 'aurora',
+      name: 'Aurora Flow',
+      css: `background: linear-gradient(45deg, ${c1}, ${c2}, ${c3}, ${c4});\nbackground-size: 400% 400%;\nanimation: auroraMove 10s ease infinite;`,
+      keyframes: `@keyframes auroraMove {\n  0% { background-position: 0% 50%; }\n  50% { background-position: 100% 50%; }\n  100% { background-position: 0% 50%; }\n}`
+    },
+
+    {
+      id: 'stepped',
+      name: 'Stepped Bars',
+      isComponent: true,
+      css: `/* Uses a React component, cannot be exported as pure CSS. */`,
+      keyframes: ``,
+      props: {
+        topColor: c1,
+        bottomColor: c4
+      }
+    },
+
+
+    {
+      id: 'wavy',
+      name: 'Wavy Layers',
+      css: `background-color: ${sorted[0]?.hex || '#000'};\nbackground-image: ${getWavySvg(stops)};\nbackground-size: 200% 100%;\nanimation: wavyScroll 12s linear infinite;`,
+      keyframes: `@keyframes wavyScroll {\n  0% { background-position: 0% 0%; }\n  100% { background-position: 100% 0%; }\n}`
+    },
+    {
+      id: 'topography',
+      name: 'Topography Map',
+      isComponent: true,
+      css: `background: #000; /* Topography lines require a React WebGL component, this is a background fallback. */`,
+      keyframes: ``,
+      props: {
+         lowColor: c1,
+         midColor: c2,
+         highColor: c4,
+      }
+    }
+  ];
+};
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 
@@ -414,12 +517,26 @@ const buildGradientCSS = (
   angle: number,
   radialShape: 'circle' | 'ellipse',
   radialPos: string,
+  animatedPresetId?: string
 ): string => {
+  if (type === 'animated' && animatedPresetId) {
+    const preset = getAnimatedPresets(stops).find(p => p.id === animatedPresetId);
+    if (preset) {
+      // The CSS includes background, background-size, animation, etc.
+      // We will parse out just the 'background' for inline style if possible, 
+      // but actually for React style object we need to return just the background shorthand, 
+      // or we can just apply the CSS class. But buildGradientCSS currently returns a string for background property.
+      // Wait, inline style `background: cssString` expects just the value, not the property name.
+      return preset.css; // We will handle this specially in the component
+    }
+  }
+
   const sorted = [...stops].sort((a, b) => a.position - b.position);
   const colorStops = sorted.map(s => `${s.hex} ${s.position}%`).join(', ');
   switch (type) {
     case 'linear': return `linear-gradient(${angle}deg, ${colorStops})`;
     case 'radial': return `radial-gradient(${radialShape} at ${radialPos}, ${colorStops})`;
+    default: return '';
   }
 };
 
@@ -429,9 +546,15 @@ const buildFormattedCSS = (
   angle: number,
   radialShape: 'circle' | 'ellipse',
   radialPos: string,
+  animatedPresetId?: string
 ): string => {
   const sorted = [...stops].sort((a, b) => a.position - b.position);
   const colorStops = sorted.map(s => `  ${s.hex} ${s.position}%`).join(',\n');
+
+  if (type === 'animated') {
+    return `/* Gradient Colors */\nbackground: linear-gradient(\n  90deg,\n${colorStops}\n);`;
+  }
+
   const prefix = type === 'linear' 
     ? `linear-gradient(\n  ${angle}deg,\n` 
     : `radial-gradient(\n  ${radialShape} at ${radialPos},\n`;
@@ -770,13 +893,14 @@ export const GradientMaker: React.FC = () => {
   const [angle, setAngle] = useState(savedState?.angle ?? 135);
   const [radialShape, setRadialShape] = useState<'circle' | 'ellipse'>(savedState?.radialShape ?? 'circle');
   const [radialPos, setRadialPos] = useState(savedState?.radialPos ?? 'center');
+  const [animatedPresetId, setAnimatedPresetId] = useState(savedState?.animatedPresetId ?? getAnimatedPresets([])[0].id);
   const [canvasRatio, setCanvasRatio] = useState(savedState?.canvasRatio ?? '16 / 9');
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      generateStopCount, lockStopCount, lockAngle, stops, gradientType, angle, radialShape, radialPos, canvasRatio
+      generateStopCount, lockStopCount, lockAngle, stops, gradientType, angle, radialShape, radialPos, canvasRatio, animatedPresetId
     }));
-  }, [generateStopCount, lockStopCount, lockAngle, stops, gradientType, angle, radialShape, radialPos, canvasRatio]);
+  }, [generateStopCount, lockStopCount, lockAngle, stops, gradientType, angle, radialShape, radialPos, canvasRatio, animatedPresetId]);
   const [copied, setCopied] = useState(false);
   const barRef = useRef<HTMLDivElement>(null);
   
@@ -789,8 +913,8 @@ export const GradientMaker: React.FC = () => {
 
   const [past, setPast] = useState<GradientState[]>([]);
   const [future, setFuture] = useState<GradientState[]>([]);
-  const stateRef = useRef({ stops, gradientType, angle, radialShape, radialPos });
-  stateRef.current = { stops, gradientType, angle, radialShape, radialPos };
+  const stateRef = useRef({ stops, gradientType, angle, radialShape, radialPos, animatedPresetId });
+  stateRef.current = { stops, gradientType, angle, radialShape, radialPos, animatedPresetId };
 
   const saveHistory = useCallback(() => {
     setPast(prev => [...prev, stateRef.current]);
@@ -902,14 +1026,14 @@ export const GradientMaker: React.FC = () => {
     }
   }, [stops, isDraggingNode]);
 
-  const gradientCSS = buildGradientCSS(stops, gradientType, angle, radialShape, radialPos);
-  const formattedCSS = buildFormattedCSS(stops, gradientType, angle, radialShape, radialPos);
+  const gradientCSS = buildGradientCSS(stops, gradientType, angle, radialShape, radialPos, animatedPresetId);
+  const formattedCSS = buildFormattedCSS(stops, gradientType, angle, radialShape, radialPos, animatedPresetId);
 
   const regenerate = useCallback(() => {
     // Capture old gradient for crossfade
     prevGradientRef.current = buildGradientCSS(
       stateRef.current.stops, stateRef.current.gradientType,
-      stateRef.current.angle, stateRef.current.radialShape, stateRef.current.radialPos
+      stateRef.current.angle, stateRef.current.radialShape, stateRef.current.radialPos, stateRef.current.animatedPresetId
     );
     // Trigger fade-out of old, then swap in new
     setIsTransitioning(true);
@@ -917,7 +1041,10 @@ export const GradientMaker: React.FC = () => {
     transitionTimerRef.current = setTimeout(() => setIsTransitioning(false), 500);
 
     // If stop count is unlocked, pick a random count between 2 and 8
-    const count = lockStopCount ? generateStopCount : 2 + Math.floor(Math.random() * 7);
+    let count = lockStopCount ? generateStopCount : 2 + Math.floor(Math.random() * 7);
+    if (stateRef.current.gradientType === 'animated' && stateRef.current.animatedPresetId === 'topography') {
+      count = Math.min(count, 3);
+    }
     if (!lockStopCount) setGenerateStopCount(count);
     setStops(generateStopsFromPalette(count));
     // If angle is unlocked, randomize to one of the 8 standard angles
@@ -955,7 +1082,8 @@ export const GradientMaker: React.FC = () => {
   }, [regenerate]);
 
   const addStop = useCallback(() => {
-    if (stops.length >= 8) return;
+    const isTopography = gradientType === 'animated' && animatedPresetId === 'topography';
+    if (stops.length >= (isTopography ? 3 : 8)) return;
     const sorted = [...stops].sort((a, b) => a.position - b.position);
     let maxGap = 0, insertPos = 50, insertHex = '#808080';
     for (let i = 0; i < sorted.length - 1; i++) {
@@ -969,7 +1097,7 @@ export const GradientMaker: React.FC = () => {
       }
     }
     setStops(prev => [...prev, { id: uid(), hex: insertHex, position: insertPos }]);
-  }, [stops]);
+  }, [stops, gradientType, animatedPresetId]);
 
   const removeStop = useCallback((id: string) => {
     setStops(prev => prev.filter(s => s.id !== id));
@@ -1030,8 +1158,77 @@ export const GradientMaker: React.FC = () => {
                 <div className="flex gap-2">
                   <TypeBtn label="LINEAR"  sub="リニア"    active={gradientType === 'linear'} onClick={() => { saveHistory(); setGradientType('linear'); }} />
                   <TypeBtn label="RADIAL"  sub="ラジアル"  active={gradientType === 'radial'} onClick={() => { saveHistory(); setGradientType('radial'); }} />
+                  <TypeBtn label="ANIMATED" sub="アニメ"   active={gradientType === 'animated'} onClick={() => { 
+                    saveHistory(); 
+                    setGradientType('animated'); 
+                    if (animatedPresetId === 'topography' && stops.length > 3) {
+                      const sorted = [...stops].sort((a, b) => a.position - b.position);
+                      setStops([sorted[0], sorted[Math.floor(sorted.length / 2)], sorted[sorted.length - 1]]);
+                      if (generateStopCount > 3) setGenerateStopCount(3);
+                    }
+                  }} />
                 </div>
               </section>
+
+              {/* ── Animated Presets — shown only for animated ──────────── */}
+              {gradientType === 'animated' && (
+                <section>
+                  <label className="block font-mono text-[10px] text-white tracking-widest uppercase mb-2">
+                    Animated Presets
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {getAnimatedPresets(displayStops).map((preset) => (
+                      <button
+                        key={preset.id}
+                        onClick={() => {
+                          saveHistory();
+                          setAnimatedPresetId(preset.id);
+                          if (preset.id === 'topography' && stops.length > 3) {
+                            const sorted = [...stops].sort((a, b) => a.position - b.position);
+                            setStops([sorted[0], sorted[Math.floor(sorted.length / 2)], sorted[sorted.length - 1]]);
+                            if (generateStopCount > 3) setGenerateStopCount(3);
+                          }
+                        }}
+                        className={`group relative h-16 rounded overflow-hidden border transition-colors shadow-lg ${
+                          animatedPresetId === preset.id ? 'border-chroma-cyan shadow-[0_0_10px_rgba(0,255,255,0.3)]' : 'border-white/10 hover:border-white/50'
+                        }`}
+                      >
+                        {/* We use a tiny internal style block to render the animated preview button */}
+                        <style>{`
+                          .btn-preview-${preset.id} {
+                            ${preset.css}
+                          }
+                          ${preset.keyframes}
+                        `}</style>
+                        <div 
+                          className={`absolute inset-0 opacity-80 group-hover:opacity-100 transition-opacity btn-preview-${preset.id}`}
+                        >
+                          {(preset as any).isComponent && preset.id === 'topography' && (
+                            <Topography
+                              lowColor={(preset as any).props.lowColor}
+                              midColor={(preset as any).props.midColor}
+                              highColor={(preset as any).props.highColor}
+                              speed={0.4}
+                              bands={2.0}
+                              scale={2.5}
+                              mouseInteraction={false}
+                            />
+                          )}
+                          {(preset as any).isComponent && preset.id === 'stepped' && (
+                            <SteppedBars
+                              topColor={(preset as any).props.topColor}
+                              bottomColor={(preset as any).props.bottomColor}
+                            />
+                          )}
+                        </div>
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 group-hover:bg-black/20 transition-colors pointer-events-none">
+                          <span className="font-mono text-[9px] text-white/90 drop-shadow-[0_1px_3px_rgba(0,0,0,1)] tracking-widest uppercase select-none">{preset.name}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
 
               {/* ── Linear Presets — shown only for linear ──────────── */}
               {gradientType === 'linear' && (
@@ -1063,9 +1260,9 @@ export const GradientMaker: React.FC = () => {
                 </section>
               )}
 
-              {/* ── Angle control (linear only) — hidden for radial ───── */}
+              {/* ── Angle control (linear only) — hidden for radial and animated ───── */}
               {/* Using visibility:hidden keeps layout stable; the section space is always reserved */}
-              <section style={{ visibility: gradientType === 'radial' ? 'hidden' : 'visible', height: gradientType === 'radial' ? 0 : 'auto', overflow: 'hidden', marginTop: gradientType === 'radial' ? 0 : undefined }}>
+              <section style={{ visibility: gradientType !== 'linear' ? 'hidden' : 'visible', height: gradientType !== 'linear' ? 0 : 'auto', overflow: 'hidden', marginTop: gradientType !== 'linear' ? 0 : undefined }}>
                 <div className="flex items-center mb-3">
                   <label className="font-mono text-[10px] text-white tracking-widest uppercase">
                     Direction
@@ -1146,43 +1343,43 @@ export const GradientMaker: React.FC = () => {
                 </section>
               )}
 
-              {/* ── Color Stops ───────────────────────────────────────── */}
+              {/* ── Color Stops (always shown so animated presets can use them) ───────────────────────────────────────── */}
               <section>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="font-mono text-[10px] text-white tracking-widest uppercase">
-                    Color Stops
-                  </label>
-                  <button
-                    onClick={copyHexList}
-                    className="font-mono text-[9px] text-white hover:text-chroma-cyan transition-colors flex items-center gap-1"
-                  >
-                    <Copy size={10} /> HEX LIST
-                  </button>
-                </div>
-                <div className="space-y-1.5">
-                  {displayStops.map((stop, i) => (
-                    <StopRow
-                      key={stop.id}
-                      stop={stop}
-                      index={i}
-                      canDelete={stops.length > 2}
-                      onColorChange={updateColor}
-                      onPositionChange={updatePosition}
-                      onDelete={removeStop}
-                      onDragStart={() => { saveHistory(); setIsDraggingNode(true); }}
-                      onDragEnd={() => setIsDraggingNode(false)}
-                    />
-                  ))}
-                </div>
-                {stops.length < 8 && (
-                  <button
-                    onClick={addStop}
-                    className="mt-2 w-full py-2 rounded-lg border border-dashed border-white/40 hover:border-white/80 text-white hover:text-white font-mono text-xs tracking-widest uppercase transition-all flex items-center justify-center gap-2"
-                  >
-                    <Plus size={12} /> Add Stop
-                  </button>
-                )}
-              </section>
+                    <label className="font-mono text-[10px] text-white tracking-widest uppercase">
+                      Color Stops
+                    </label>
+                    <button
+                      onClick={copyHexList}
+                      className="font-mono text-[9px] text-white hover:text-chroma-cyan transition-colors flex items-center gap-1"
+                    >
+                      <Copy size={10} /> HEX LIST
+                    </button>
+                  </div>
+                  <div className="space-y-1.5">
+                    {displayStops.map((stop, i) => (
+                      <StopRow
+                        key={stop.id}
+                        stop={stop}
+                        index={i}
+                        canDelete={stops.length > 2}
+                        onColorChange={updateColor}
+                        onPositionChange={updatePosition}
+                        onDelete={removeStop}
+                        onDragStart={() => { saveHistory(); setIsDraggingNode(true); }}
+                        onDragEnd={() => setIsDraggingNode(false)}
+                      />
+                    ))}
+                  </div>
+                  {stops.length < 8 && (
+                    <button
+                      onClick={addStop}
+                      className="mt-2 w-full py-2 rounded-lg border border-dashed border-white/40 hover:border-white/80 text-white hover:text-white font-mono text-xs tracking-widest uppercase transition-all flex items-center justify-center gap-2"
+                    >
+                      <Plus size={12} /> Add Stop
+                    </button>
+                  )}
+                </section>
 
               {/* ── Generated CSS ─────────────────────────────────────── */}
               <section>
@@ -1206,11 +1403,21 @@ export const GradientMaker: React.FC = () => {
           <div className="flex-1 flex flex-col items-center justify-center overflow-hidden bg-chroma-black p-4 gap-3 min-h-0">
 
             <div className="relative shrink min-h-0 h-full max-w-full w-auto transition-[aspect-ratio] duration-300 ease-in-out ring-1 ring-white/20 rounded-lg shadow-2xl" style={{ aspectRatio: canvasRatio, maxHeight: 'calc(100% - 120px)' }}>
+              
+              <style>{`
+                .current-gradient-preview {
+                  ${gradientType === 'animated' && animatedPresetId ? getAnimatedPresets(displayStops).find(p => p.id === animatedPresetId)?.css : `background: ${gradientCSS};`}
+                }
+                .prev-gradient-preview {
+                  ${stateRef.current.gradientType === 'animated' && stateRef.current.animatedPresetId ? getAnimatedPresets(stateRef.current.stops).find(p => p.id === stateRef.current.animatedPresetId)?.css : `background: ${prevGradientRef.current};`}
+                }
+                ${gradientType === 'animated' && animatedPresetId ? getAnimatedPresets(displayStops).find(p => p.id === animatedPresetId)?.keyframes : ''}
+              `}</style>
+
               {/* Previous gradient — fades out during transition */}
               <div
-                className="absolute inset-0 rounded-lg overflow-hidden shadow-[0_0_20px_rgba(0,0,0,0.5)] ring-1 ring-black/50"
+                className="absolute inset-0 rounded-lg overflow-hidden shadow-[0_0_20px_rgba(0,0,0,0.5)] ring-1 ring-black/50 prev-gradient-preview"
                 style={{
-                  background: prevGradientRef.current || gradientCSS,
                   opacity: isTransitioning ? 1 : 0,
                   transition: isTransitioning ? 'none' : 'opacity 0.5s ease-in-out',
                   pointerEvents: 'none',
@@ -1218,9 +1425,25 @@ export const GradientMaker: React.FC = () => {
               />
               {/* Current gradient — always visible beneath */}
               <div
-                className="absolute inset-0 rounded-lg overflow-hidden"
-                style={{ background: gradientCSS }}
-              />
+                className="absolute inset-0 rounded-lg overflow-hidden current-gradient-preview"
+              >
+                {gradientType === 'animated' && animatedPresetId === 'topography' && (
+                  <Topography
+                    lowColor={getAnimatedPresets(displayStops).find(p => p.id === 'topography')?.props.lowColor}
+                    midColor={getAnimatedPresets(displayStops).find(p => p.id === 'topography')?.props.midColor}
+                    highColor={getAnimatedPresets(displayStops).find(p => p.id === 'topography')?.props.highColor}
+                    speed={0.35}
+                    bands={2.0}
+                    scale={2.5}
+                  />
+                )}
+                {gradientType === 'animated' && animatedPresetId === 'stepped' && (
+                  <SteppedBars
+                    topColor={(getAnimatedPresets(displayStops).find(p => p.id === 'stepped') as any)?.props?.topColor}
+                    bottomColor={(getAnimatedPresets(displayStops).find(p => p.id === 'stepped') as any)?.props?.bottomColor}
+                  />
+                )}
+              </div>
             </div>
 
             {/* Interactive Gradient Bar */}

@@ -26,7 +26,7 @@ export const LandingPagePreview: React.FC<{ colors: ColorData[], isDark: boolean
       className="w-full h-[600px] rounded-xl shadow-2xl overflow-hidden flex flex-col font-['Product_Sans',sans-serif]"
       style={{ backgroundColor: surfaceBg, color: textMain }}
     >
-      <div className="flex-1 overflow-auto custom-scrollbar relative">
+      <div className={`flex-1 overflow-auto relative ${isDark ? 'custom-scrollbar' : 'custom-scrollbar-light'}`}>
         
         {/* Hero Section */}
         <div className="relative pb-24 transition-colors duration-500" style={{ backgroundColor: heroBg, color: heroText }}>

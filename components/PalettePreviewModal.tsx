@@ -23,12 +23,12 @@ const PREVIEWS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, component: DashboardPreview },
   { id: 'landing', label: 'Landing Page', icon: LayoutTemplate, component: LandingPagePreview },
   { id: 'business-card', label: 'Business Card', icon: Contact, component: BusinessCardPreview },
-  { id: 'art', label: 'Geometric Art', icon: Palette, component: ArtPreview },
-  { id: 'abstract-faces', label: 'Abstract Faces', icon: Shapes, component: AbstractFacesPreview },
-  { id: 'mascot', label: 'Monster Mascot', icon: Smile, component: MascotPreview },
   { id: 'auth', label: 'Login Form', icon: LogIn, component: AuthFormPreview },
   { id: 'pricing', label: 'Pricing Cards', icon: CreditCard, component: PricingCardPreview },
   { id: 'card', label: 'Product Card', icon: Box, component: CardPreview },
+  { id: 'art', label: 'Geometric Art', icon: Palette, component: ArtPreview },
+  { id: 'abstract-faces', label: 'Abstract Faces', icon: Shapes, component: AbstractFacesPreview },
+  { id: 'mascot', label: 'Monster Mascot', icon: Smile, component: MascotPreview },
 ];
 
 export const getTextColor = (hex: string) => {

@@ -52,7 +52,7 @@ export const DashboardPreview: React.FC<{ colors: ColorData[], isDark?: boolean 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
-        <div className="h-14 flex items-center justify-between px-6 bg-white/50 backdrop-blur-sm border-b shrink-0" style={{ borderColor: borderCol, backgroundColor: cardBg }}>
+        <div className="h-14 flex items-center justify-between px-6 border-b shrink-0" style={{ borderColor: borderCol, backgroundColor: cardBg }}>
           <h2 className="text-xl font-bold" style={{ color: textMain }}>Dashboard</h2>
           <div className="flex items-center gap-4">
             <div className="relative group">

@@ -6,6 +6,7 @@ import { createColorData, rgbToHex } from '../utils/colorUtils';
 import { ColorData } from '../types';
 import { validateImageFile } from '../utils/fileValidation';
 import { converter, differenceEuclidean } from 'culori';
+import { jsPDF } from 'jspdf';
 import { PalettePreviewModal } from '../components/PalettePreviewModal';
 import { ExportCodeModal } from '../components/ExportCodeModal';
 
