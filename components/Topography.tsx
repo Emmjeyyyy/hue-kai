@@ -222,6 +222,7 @@ const Topography: React.FC<TopographyProps> = ({
       webgl: 2,
       alpha: true,
       premultipliedAlpha: true,
+      preserveDrawingBuffer: true,
       antialias: false,
       dpr: Math.min(window.devicePixelRatio || 1, 2)
     });

@@ -123,8 +123,8 @@ export const getAnimatedPresets = (stops: GradientStop[]) => {
     {
       id: 'aurora',
       name: 'Aurora Flow',
-      css: `background: linear-gradient(45deg, ${c1}, ${c2}, ${c3}, ${c4});\nbackground-size: 400% 400%;\nanimation: auroraMove 10s ease infinite;`,
-      keyframes: `@keyframes auroraMove {\n  0% { background-position: 0% 50%; }\n  50% { background-position: 100% 50%; }\n  100% { background-position: 0% 50%; }\n}`
+      css: `background: linear-gradient(45deg, ${c1} 0%, ${c2} 12.5%, ${c3} 25%, ${c4} 37.5%, ${c1} 50%, ${c2} 62.5%, ${c3} 75%, ${c4} 87.5%, ${c1} 100%);\nbackground-size: 6000px 6000px;\nanimation: auroraMove 40s linear infinite;`,
+      keyframes: `@keyframes auroraMove {\n  0% { background-position: 0px 0px; }\n  100% { background-position: 6000px 0px; }\n}`
     },
 
     {
@@ -941,6 +941,31 @@ export const GradientMaker: React.FC = () => {
     if (isDownloading) return;
     setIsDownloading(true);
 
+    if (gradientType === 'animated') {
+      const captureNode = document.querySelector('.current-gradient-preview') as HTMLElement;
+      if (captureNode) {
+        try {
+          const originalRadius = captureNode.style.borderRadius;
+          captureNode.style.borderRadius = '0px';
+          
+          await new Promise(r => setTimeout(r, 150));
+          const dataUrl = await htmlToImage.toPng(captureNode, { pixelRatio: 2 });
+          
+          captureNode.style.borderRadius = originalRadius;
+          
+          const link = document.createElement('a');
+          link.download = `huekai-animated-${Date.now()}.png`;
+          link.href = dataUrl;
+          link.click();
+        } catch (err) {
+          console.error('Failed to download image', err);
+        } finally {
+          setIsDownloading(false);
+        }
+        return;
+      }
+    }
+
     let width = 1920;
     let height = 1080;
     if (canvasRatio === '4 / 3') { width = 1600; height = 1200; }
@@ -1042,8 +1067,12 @@ export const GradientMaker: React.FC = () => {
 
     // If stop count is unlocked, pick a random count between 2 and 8
     let count = lockStopCount ? generateStopCount : 2 + Math.floor(Math.random() * 7);
-    if (stateRef.current.gradientType === 'animated' && stateRef.current.animatedPresetId === 'topography') {
-      count = Math.min(count, 3);
+    if (stateRef.current.gradientType === 'animated') {
+      if (stateRef.current.animatedPresetId === 'topography') {
+        count = Math.min(count, 3);
+      } else if (stateRef.current.animatedPresetId === 'stepped') {
+        count = Math.min(count, 2);
+      }
     }
     if (!lockStopCount) setGenerateStopCount(count);
     setStops(generateStopsFromPalette(count));
@@ -1083,7 +1112,9 @@ export const GradientMaker: React.FC = () => {
 
   const addStop = useCallback(() => {
     const isTopography = gradientType === 'animated' && animatedPresetId === 'topography';
-    if (stops.length >= (isTopography ? 3 : 8)) return;
+    const isStepped = gradientType === 'animated' && animatedPresetId === 'stepped';
+    const maxStops = isTopography ? 3 : (isStepped ? 2 : 8);
+    if (stops.length >= maxStops) return;
     const sorted = [...stops].sort((a, b) => a.position - b.position);
     let maxGap = 0, insertPos = 50, insertHex = '#808080';
     for (let i = 0; i < sorted.length - 1; i++) {
@@ -1165,6 +1196,10 @@ export const GradientMaker: React.FC = () => {
                       const sorted = [...stops].sort((a, b) => a.position - b.position);
                       setStops([sorted[0], sorted[Math.floor(sorted.length / 2)], sorted[sorted.length - 1]]);
                       if (generateStopCount > 3) setGenerateStopCount(3);
+                    } else if (animatedPresetId === 'stepped' && stops.length > 2) {
+                      const sorted = [...stops].sort((a, b) => a.position - b.position);
+                      setStops([sorted[0], sorted[sorted.length - 1]]);
+                      if (generateStopCount > 2) setGenerateStopCount(2);
                     }
                   }} />
                 </div>
@@ -1187,6 +1222,10 @@ export const GradientMaker: React.FC = () => {
                             const sorted = [...stops].sort((a, b) => a.position - b.position);
                             setStops([sorted[0], sorted[Math.floor(sorted.length / 2)], sorted[sorted.length - 1]]);
                             if (generateStopCount > 3) setGenerateStopCount(3);
+                          } else if (preset.id === 'stepped' && stops.length > 2) {
+                            const sorted = [...stops].sort((a, b) => a.position - b.position);
+                            setStops([sorted[0], sorted[sorted.length - 1]]);
+                            if (generateStopCount > 2) setGenerateStopCount(2);
                           }
                         }}
                         className={`group relative h-16 rounded overflow-hidden border transition-colors shadow-lg ${
@@ -1371,7 +1410,7 @@ export const GradientMaker: React.FC = () => {
                       />
                     ))}
                   </div>
-                  {stops.length < 8 && (
+                  {stops.length < (gradientType === 'animated' && animatedPresetId === 'topography' ? 3 : gradientType === 'animated' && animatedPresetId === 'stepped' ? 2 : 8) && (
                     <button
                       onClick={addStop}
                       className="mt-2 w-full py-2 rounded-lg border border-dashed border-white/40 hover:border-white/80 text-white hover:text-white font-mono text-xs tracking-widest uppercase transition-all flex items-center justify-center gap-2"
