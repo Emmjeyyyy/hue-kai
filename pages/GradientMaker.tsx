@@ -61,8 +61,11 @@ const LINEAR_PRESETS = [
   { name: 'Midnight Flare', angle: 135, stops: [{ hex: '#2A0845', position: 0 }, { hex: '#7B2CBF', position: 30 }, { hex: '#FF007F', position: 60 }, { hex: '#FF5E00', position: 85 }, { hex: '#FFD000', position: 100 }] },
 ];
 
-export const getAnimatedPresets = (stops: GradientStop[]) => {
-  const sorted = [...stops].sort((a,b) => a.position - b.position);
+export const getAnimatedPresets = (stops: GradientStop[] = []) => {
+  const safeStops = (stops && stops.length > 0)
+    ? stops
+    : [{ id: 'default-1', hex: '#000000', position: 0 }, { id: 'default-2', hex: '#ffffff', position: 100 }];
+  const sorted = [...safeStops].sort((a, b) => a.position - b.position);
   const c1 = sorted[0]?.hex || '#000000';
   const c2 = sorted[Math.floor(sorted.length / 3)]?.hex || '#555555';
   const c3 = sorted[Math.floor(2 * sorted.length / 3)]?.hex || '#aaaaaa';
@@ -73,8 +76,11 @@ export const getAnimatedPresets = (stops: GradientStop[]) => {
   const {r: r4, g: g4, b: b4} = hexToRgb(c4);
 
   // Helper for Wavy Layers preset
-  const getWavySvg = (gradientStops: GradientStop[]) => {
-    const sortedStops = [...gradientStops].sort((a, b) => a.position - b.position);
+  const getWavySvg = (gradientStops: GradientStop[] = []) => {
+    const validStops = (gradientStops && gradientStops.length > 0)
+      ? gradientStops
+      : safeStops;
+    const sortedStops = [...validStops].sort((a, b) => a.position - b.position);
     const n = sortedStops.length;
     const spacing = 800 / (n + 1);
     const A = 60; // Amplitude
@@ -82,9 +88,10 @@ export const getAnimatedPresets = (stops: GradientStop[]) => {
     for (let i = 1; i < n; i++) {
       const y = i * spacing + 50; 
       const amp = A * (i % 2 === 0 ? 1 : -1); 
-      paths += `<path d="M -400,${y} Q -300,${y+amp} -200,${y} T 0,${y} T 200,${y} T 400,${y} T 600,${y} T 800,${y} T 1000,${y} T 1200,${y} L 1200,2000 L -400,2000 Z" fill="${sortedStops[i].hex}" />`;
+      paths += `<path d="M -400,${y} Q -300,${y+amp} -200,${y} T 0,${y} T 200,${y} T 400,${y} T 600,${y} T 800,${y} T 1000,${y} T 1200,${y} L 1200,2000 L -400,2000 Z" fill="${sortedStops[i]?.hex || '#ffffff'}" />`;
     }
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" preserveAspectRatio="none"><defs><filter id="wavyBlur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="40" /></filter></defs><rect width="100%" height="100%" fill="${sortedStops[0].hex}" /><g filter="url(#wavyBlur)">${paths}</g></svg>`;
+    const bgFill = sortedStops[0]?.hex || '#000000';
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" preserveAspectRatio="none"><defs><filter id="wavyBlur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="40" /></filter></defs><rect width="100%" height="100%" fill="${bgFill}" /><g filter="url(#wavyBlur)">${paths}</g></svg>`;
     return `url('data:image/svg+xml,${encodeURIComponent(svg)}')`;
   };
 
@@ -519,8 +526,9 @@ const buildGradientCSS = (
   radialPos: string,
   animatedPresetId?: string
 ): string => {
+  const safeStops = (stops && stops.length > 0) ? stops : [{ id: 'default-1', hex: '#000000', position: 0 }, { id: 'default-2', hex: '#ffffff', position: 100 }];
   if (type === 'animated' && animatedPresetId) {
-    const preset = getAnimatedPresets(stops).find(p => p.id === animatedPresetId);
+    const preset = getAnimatedPresets(safeStops).find(p => p.id === animatedPresetId);
     if (preset) {
       // The CSS includes background, background-size, animation, etc.
       // We will parse out just the 'background' for inline style if possible, 
@@ -531,8 +539,8 @@ const buildGradientCSS = (
     }
   }
 
-  const sorted = [...stops].sort((a, b) => a.position - b.position);
-  const colorStops = sorted.map(s => `${s.hex} ${s.position}%`).join(', ');
+  const sorted = [...safeStops].sort((a, b) => a.position - b.position);
+  const colorStops = sorted.map(s => `${s?.hex || '#000000'} ${s?.position ?? 0}%`).join(', ');
   switch (type) {
     case 'linear': return `linear-gradient(${angle}deg, ${colorStops})`;
     case 'radial': return `radial-gradient(${radialShape} at ${radialPos}, ${colorStops})`;
@@ -548,8 +556,9 @@ const buildFormattedCSS = (
   radialPos: string,
   animatedPresetId?: string
 ): string => {
-  const sorted = [...stops].sort((a, b) => a.position - b.position);
-  const colorStops = sorted.map(s => `  ${s.hex} ${s.position}%`).join(',\n');
+  const safeStops = (stops && stops.length > 0) ? stops : [{ id: 'default-1', hex: '#000000', position: 0 }, { id: 'default-2', hex: '#ffffff', position: 100 }];
+  const sorted = [...safeStops].sort((a, b) => a.position - b.position);
+  const colorStops = sorted.map(s => `  ${s?.hex || '#000000'} ${s?.position ?? 0}%`).join(',\n');
 
   if (type === 'animated') {
     return `/* Gradient Colors */\nbackground: linear-gradient(\n  90deg,\n${colorStops}\n);`;
@@ -888,12 +897,18 @@ export const GradientMaker: React.FC = () => {
   const [lockStopCount, setLockStopCount] = useState(savedState?.lockStopCount ?? false);
   const [lockAngle, setLockAngle] = useState(savedState?.lockAngle ?? false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
-  const [stops, setStops] = useState<GradientStop[]>(() => savedState?.stops ?? generateStopsFromPalette(4));
+  const [stops, setStops] = useState<GradientStop[]>(() => {
+    if (Array.isArray(savedState?.stops) && savedState.stops.length >= 2) {
+      const valid = savedState.stops.filter((s: any) => s && typeof s.hex === 'string' && typeof s.position === 'number');
+      if (valid.length >= 2) return valid;
+    }
+    return generateStopsFromPalette(4);
+  });
   const [gradientType, setGradientType] = useState<GradientType>(savedState?.gradientType ?? 'linear');
   const [angle, setAngle] = useState(savedState?.angle ?? 135);
   const [radialShape, setRadialShape] = useState<'circle' | 'ellipse'>(savedState?.radialShape ?? 'circle');
   const [radialPos, setRadialPos] = useState(savedState?.radialPos ?? 'center');
-  const [animatedPresetId, setAnimatedPresetId] = useState(savedState?.animatedPresetId ?? getAnimatedPresets([])[0].id);
+  const [animatedPresetId, setAnimatedPresetId] = useState(savedState?.animatedPresetId ?? 'aurora');
   const [canvasRatio, setCanvasRatio] = useState(savedState?.canvasRatio ?? '16 / 9');
 
   useEffect(() => {
@@ -1448,7 +1463,7 @@ export const GradientMaker: React.FC = () => {
                   ${gradientType === 'animated' && animatedPresetId ? getAnimatedPresets(displayStops).find(p => p.id === animatedPresetId)?.css : `background: ${gradientCSS};`}
                 }
                 .prev-gradient-preview {
-                  ${stateRef.current.gradientType === 'animated' && stateRef.current.animatedPresetId ? getAnimatedPresets(stateRef.current.stops).find(p => p.id === stateRef.current.animatedPresetId)?.css : `background: ${prevGradientRef.current};`}
+                  ${stateRef.current.gradientType === 'animated' && stateRef.current.animatedPresetId ? getAnimatedPresets(stateRef.current.stops || []).find(p => p.id === stateRef.current.animatedPresetId)?.css : `background: ${prevGradientRef.current};`}
                 }
                 ${gradientType === 'animated' && animatedPresetId ? getAnimatedPresets(displayStops).find(p => p.id === animatedPresetId)?.keyframes : ''}
               `}</style>
@@ -1468,9 +1483,9 @@ export const GradientMaker: React.FC = () => {
               >
                 {gradientType === 'animated' && animatedPresetId === 'topography' && (
                   <Topography
-                    lowColor={getAnimatedPresets(displayStops).find(p => p.id === 'topography')?.props.lowColor}
-                    midColor={getAnimatedPresets(displayStops).find(p => p.id === 'topography')?.props.midColor}
-                    highColor={getAnimatedPresets(displayStops).find(p => p.id === 'topography')?.props.highColor}
+                    lowColor={getAnimatedPresets(displayStops).find(p => p.id === 'topography')?.props?.lowColor}
+                    midColor={getAnimatedPresets(displayStops).find(p => p.id === 'topography')?.props?.midColor}
+                    highColor={getAnimatedPresets(displayStops).find(p => p.id === 'topography')?.props?.highColor}
                     speed={0.35}
                     bands={2.0}
                     scale={2.5}

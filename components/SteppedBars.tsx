@@ -2,11 +2,11 @@ import React from 'react';
 import { motion } from 'framer-motion';
 
 interface SteppedBarsProps {
-  topColor: string;
-  bottomColor: string;
+  topColor?: string;
+  bottomColor?: string;
 }
 
-export default function SteppedBars({ topColor, bottomColor }: SteppedBarsProps) {
+export default function SteppedBars({ topColor = '#000000', bottomColor = '#ffffff' }: SteppedBarsProps) {
   const bars = [0, 1, 2, 3, 4, 5];
   const mids = [17, 32, 47, 62, 77, 90];
   const amp = 5;
